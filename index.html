@@ -18,10 +18,23 @@
         .step-number { background: #333; color: var(--muted); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; margin-right: 10px; }
         
         .upload-zone { border: 1.5px dashed #444; border-radius: 12px; padding: 30px 20px; text-align: center; cursor: pointer; position: relative; overflow: hidden; }
-        .preview-img { display: none; width: 100%; height: 200px; object-fit: contain; border-radius: 8px; transition: filter 0.4s ease; }
+        .preview-img { display: none; width: 100%; height: 200px; object-fit: contain; border-radius: 8px; }
         
-        /* ЭФФЕКТ БЛЮРА ТОЛЬКО НА КАРТИНКУ */
-        .preview-img.is-loading { filter: blur(10px) grayscale(50%); }
+        /* ПЕРЕЛИВАЮЩИЙСЯ БЛЮР (SHIMMER) */
+        .loading-shimmer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            display: none;
+        }
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        .preview-img.is-loading { filter: blur(5px) grayscale(50%); }
+        .preview-img.is-loading + .loading-shimmer { display: block; }
         
         .upload-icon { font-size: 32px; margin-bottom: 10px; }
         
@@ -35,9 +48,7 @@
         .btn-generate { background: var(--accent); color: var(--accent-txt); border: none; width: 100%; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; }
         .btn-generate:disabled { opacity: 0.7; }
         
-        .result-img { display: none; width: 100%; border-radius: 12px; margin-top: 10px; transition: filter 0.4s ease; }
-        .result-img.is-loading { filter: blur(10px); }
-        
+        .result-img { display: none; width: 100%; border-radius: 12px; margin-top: 10px; }
         .btn-download { display: none; background: #333; color: white; border: none; width: 100%; padding: 14px; border-radius: 10px; font-size: 14px; font-weight: 600; margin-top: 10px; cursor: pointer; text-align: center; }
         
         .status-text { font-size: 13px; color: var(--accent); text-align: center; margin-top: 10px; display: none; }
@@ -53,6 +64,7 @@
             <div class="upload-icon" id="uploadIcon">📦</div>
             <div id="uploadText" style="color: var(--muted); font-size: 14px;">Добавьте фото товара</div>
             <img id="previewImg" class="preview-img">
+            <div class="loading-shimmer"></div>
         </div>
         <input type="file" id="fileInput" accept="image/*">
     </div>
@@ -107,13 +119,13 @@
         btnGenerate.addEventListener('click', async () => {
             if (!currentFile) return;
             
-            // Включаем блюр ТОЛЬКО на превью
+            // Включаем переливающийся блюр
             previewImg.classList.add('is-loading');
             
             btnGenerate.disabled = true; 
             btnGenerate.innerHTML = "Генерация... ⏳";
             statusText.style.display = 'block';
-            statusText.textContent = "Пожалуйста, подождите (до 60 секунд)...";
+            statusText.textContent = "Пожалуйста, подождите...";
 
             const formData = new FormData();
             formData.append('file', currentFile);
@@ -152,22 +164,25 @@
                 tg.showAlert("Ошибка сети. Попробуйте еще раз.");
                 btnGenerate.disabled = false; btnGenerate.innerHTML = "Повторить";
             } finally {
-                // Выключаем блюр с превью
+                // Выключаем блюр
                 previewImg.classList.remove('is-loading');
             }
         });
 
-        // Кнопка скачивания
+        // Кнопка скачивания (исправленная)
         btnDownload.addEventListener('click', () => {
             if (!generatedImageUrl) return;
             
-            // Показываем подсказку ДО открытия ссылки
-            tg.showAlert("Картинка откроется в браузере. Нажмите на неё и выберите 'Сохранить изображение'.");
+            // Пытаемся скачать через нативный метод Telegram
+            if (tg.downloadFile) {
+                tg.downloadFile({ url: generatedImageUrl, file_name: 'genkart-card.png' });
+            } else {
+                // Если метод недоступен, открываем в новой вкладке
+                window.open(generatedImageUrl, '_blank');
+            }
             
-            // Открываем ссылку (с небольшой задержкой, чтобы пользователь успел прочитать)
-            setTimeout(() => {
-                tg.openLink(generatedImageUrl);
-            }, 500);
+            // Показываем сообщение
+            tg.showAlert("Если картинка не сохранилась автоматически, нажмите на неё и выберите 'Сохранить изображение'.");
         });
     </script>
 </body>
