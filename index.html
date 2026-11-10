@@ -98,8 +98,20 @@
         let currentFile = null;
         let generatedImageUrl = null;
 
-        // Пробуждение сервера при открытии
-        fetch('https://genkart-app.onrender.com/').catch(() => console.log("Сервер спит"));
+        // Функция пробуждения сервера
+        async function wakeUpServer() {
+            statusText.style.display = 'block';
+            statusText.textContent = "Подключаемся к серверу... (до 60 сек)";
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 60000);
+                await fetch('https://genkart-app.onrender.com/', { signal: controller.signal });
+                clearTimeout(timeoutId);
+                statusText.textContent = "Сервер готов к работе!";
+            } catch (e) {
+                statusText.textContent = "Сервер не отвечает. Попробуйте нажать 'Сгенерировать' позже.";
+            }
+        }
 
         uploadZone.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', (e) => {
@@ -111,6 +123,7 @@
                     document.getElementById('uploadIcon').style.display = 'none';
                     document.getElementById('uploadText').style.display = 'none';
                     btnGenerate.disabled = false;
+                    wakeUpServer(); // Будим сервер сразу после загрузки фото
                 };
                 reader.readAsDataURL(currentFile);
             }
@@ -123,7 +136,7 @@
             btnGenerate.disabled = true; 
             btnGenerate.innerHTML = "Генерация... ⏳";
             statusText.style.display = 'block';
-            statusText.textContent = "Пожалуйста, подождите (до 60 секунд)...";
+            statusText.textContent = "Пожалуйста, подождите...";
 
             const formData = new FormData();
             formData.append('file', currentFile);
@@ -163,19 +176,17 @@
                     btnGenerate.disabled = false; btnGenerate.innerHTML = "Повторить";
                 }
             } catch (error) {
-                tg.showAlert("Ошибка сети. Сервер не отвечает. Попробуйте еще раз.");
+                tg.showAlert("Ошибка сети. Попробуйте еще раз через минуту.");
                 btnGenerate.disabled = false; btnGenerate.innerHTML = "Повторить";
             } finally {
                 previewImg.classList.remove('is-loading');
             }
         });
 
-        // КНОПКА СКАЧИВАНИЯ (ОТКРЫВАЕТ В БРАУЗЕРЕ)
         btnDownload.addEventListener('click', () => {
             if (!generatedImageUrl) return;
-            
             tg.openLink(generatedImageUrl);
-            tg.showAlert("Картинка открыта. Нажмите на неё и выберите 'Сохранить изображение'.");
+            tg.showAlert("Картинка открыта в браузере. Нажмите на неё и выберите 'Сохранить изображение'.");
         });
     </script>
 </body>
