@@ -15,7 +15,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-BOT_TOKEN = "9195903180:AAEvtP9JaGzhpbHCUQpUuDLJsAoavYw0FKU" # Ваш токен
+# ВАЖНО: Вставьте сюда ваш АКТУАЛЬНЫЙ токен от BotFather
+BOT_TOKEN = "9195903180:AAEvtP9JaGzhpbHCUQpUuDLJsAoavYw0FKU" 
 
 @app.get("/")
 def read_root():
@@ -56,12 +57,20 @@ async def generate_card(file: UploadFile = File(...), title: str = Form("Наз�
     bg.save(img_byte_arr, format='PNG')
     img_byte_arr.seek(0)
     
-    # Если передан chat_id, отправляем картинку прямо в Telegram
+    # Отправка в Telegram с проверкой
     if chat_id:
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
         files = {'photo': ('card.png', img_byte_arr.getvalue(), 'image/png')}
-        data = {'chat_id': chat_id, 'caption': 'Ваша карточка готова! Нажмите на неё, чтобы сохранить.'}
-        requests.post(url, files=files, data=data)
-        img_byte_arr.seek(0) # Сбрасываем указатель для отправки на сайт
+        data = {'chat_id': chat_id, 'caption': 'Ваша карточка готова!'}
+        
+        try:
+            tg_response = requests.post(url, files=files, data=data)
+            # Если Telegram вернул ошибку, выводим её в консоль Render (в логи)
+            if tg_response.status_code != 200:
+                print(f"ОШИБКА TELEGRAM: {tg_response.text}")
+        except Exception as e:
+            print(f"ОШИБКА ОТПРАВКИ: {e}")
+        
+        img_byte_arr.seek(0) 
     
     return StreamingResponse(img_byte_arr, media_type="image/png")
