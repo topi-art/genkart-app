@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -33,8 +32,9 @@
         .btn-generate:disabled { opacity: 0.7; }
         
         .result-img { display: none; width: 100%; border-radius: 12px; margin-top: 10px; }
-        .status-text { font-size: 13px; color: var(--accent); text-align: center; margin-top: 10px; display: none; }
+        .btn-download { display: none; background: #333; color: white; border: none; width: 100%; padding: 14px; border-radius: 10px; font-size: 14px; font-weight: 600; margin-top: 10px; cursor: pointer; text-align: center; }
         
+        .status-text { font-size: 13px; color: var(--accent); text-align: center; margin-top: 10px; display: none; }
         input[type="file"] { display: none; }
     </style>
 </head>
@@ -70,6 +70,7 @@
     <div class="step-card" id="resultsCard" style="display: none;">
         <div class="step-header"><div class="step-number">3</div>Результаты</div>
         <img id="resultImg" class="result-img">
+        <button class="btn-download" id="btnDownload">📥 Скачать карточку</button>
     </div>
 
     <script>
@@ -78,8 +79,9 @@
         const uploadZone = document.getElementById('uploadZone'), fileInput = document.getElementById('fileInput');
         const previewImg = document.getElementById('previewImg'), btnGenerate = document.getElementById('btnGenerate');
         const resultsCard = document.getElementById('resultsCard'), resultImg = document.getElementById('resultImg');
-        const statusText = document.getElementById('statusText');
+        const statusText = document.getElementById('statusText'), btnDownload = document.getElementById('btnDownload');
         let currentFile = null;
+        let generatedImageUrl = null;
 
         uploadZone.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', (e) => {
@@ -99,14 +101,14 @@
         btnGenerate.addEventListener('click', async () => {
             if (!currentFile) return;
             btnGenerate.disabled = true; 
-            btnGenerate.innerHTML = "Генерация... ⏳ (ждем сервер)";
+            btnGenerate.innerHTML = "Генерация... ⏳";
             statusText.style.display = 'block';
-            statusText.textContent = "Пожалуйста, подождите до 60 секунд (сервер просыпается)...";
+            statusText.textContent = "Пожалуйста, подождите...";
 
             const formData = new FormData();
             formData.append('file', currentFile);
             formData.append('title', document.getElementById('titleInput').value || "Название товара");
-            formData.append('subtitle', document.getElementById('subtitleInput').value || "Описание товара");
+            formData.append('subtitle', document.getElementById('subtitleInput').value || "Описание");
 
             try {
                 const response = await fetch('https://genkart-app.onrender.com/generate-card', {
@@ -116,9 +118,11 @@
 
                 if (response.ok) {
                     const blob = await response.blob();
-                    const imageUrl = URL.createObjectURL(blob);
-                    resultImg.src = imageUrl; 
+                    generatedImageUrl = URL.createObjectURL(blob);
+                    
+                    resultImg.src = generatedImageUrl; 
                     resultImg.style.display = 'block';
+                    btnDownload.style.display = 'block'; // Показываем кнопку скачивания
                     resultsCard.style.display = 'block';
                     
                     setTimeout(() => {
@@ -129,15 +133,30 @@
                     btnGenerate.innerHTML = "Купить подписку";
                     btnGenerate.style.background = "#333"; 
                     btnGenerate.style.color = "#fff";
-                    statusText.textContent = "Пробная попытка использована.";
+                    statusText.textContent = "Готово!";
                 } else {
                     tg.showAlert("Ошибка на сервере.");
                     btnGenerate.disabled = false; btnGenerate.innerHTML = "Повторить";
                 }
             } catch (error) {
-                tg.showAlert("Ошибка сети. Сервер не отвечает. Попробуйте еще раз через минуту.");
+                tg.showAlert("Ошибка сети. Попробуйте еще раз.");
                 btnGenerate.disabled = false; btnGenerate.innerHTML = "Повторить";
             }
+        });
+
+        // Логика скачивания
+        btnDownload.addEventListener('click', async () => {
+            if (!generatedImageUrl) return;
+            
+            // В Telegram Mini Apps скачивание работает через открытие ссылки
+            const link = document.createElement('a');
+            link.href = generatedImageUrl;
+            link.download = 'genkart-card.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            tg.showAlert("Карточка сохранена! Проверьте галерею или папку 'Загрузки'.");
         });
     </script>
 </body>
