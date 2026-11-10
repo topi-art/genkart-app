@@ -3,7 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import io
-import requests
 
 app = FastAPI()
 
@@ -15,34 +14,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Ваш токен от BotFather
-BOT_TOKEN = "9195903180:AAEvtP9JaGzhpbHCUQpUuDLJsAoavYw0FKU" 
-
 @app.get("/")
 def read_root():
-    return {"status": "ok", "message": "Бэкенд ГенКарт работает!"}
+    return {"status": "ok", "message": "Бэкенд работает!"}
 
 @app.post("/generate-card")
-async def generate_card(file: UploadFile = File(...), title: str = Form("Название"), subtitle: str = Form("Описание"), chat_id: str = Form(None)):
+async def generate_card(file: UploadFile = File(...), title: str = Form("Название"), subtitle: str = Form("Описание")):
     image_data = await file.read()
     img = Image.open(io.BytesIO(image_data)).convert("RGBA")
     
+    # Создаем фон
     bg = Image.new("RGB", (1080, 1080), (240, 240, 245))
     draw = ImageDraw.Draw(bg)
-    for y in range(1080):
-        color = int(240 - (y / 1080) * 30)
-        draw.line([(0, y), (1080, y)], fill=(color, color, color + 5))
     
+    # Вставляем фото
     img.thumbnail((800, 800))
     x = (1080 - img.width) // 2
     y = (1080 - img.height) // 2 + 50
-    
-    shadow = Image.new("RGBA", (img.width + 40, img.height + 40), (0, 0, 0, 0))
-    ImageDraw.Draw(shadow).ellipse((20, 20, img.width + 20, img.height + 20), fill=(0, 0, 0, 80))
-    shadow = shadow.filter(ImageFilter.GaussianBlur(15))
-    bg.paste(shadow, (x - 20, y + 10), shadow)
     bg.paste(img, (x, y), img)
     
+    # Текст
     try:
         font_title = ImageFont.truetype("arial.ttf", 60)
         font_sub = ImageFont.truetype("arial.ttf", 40)
@@ -56,16 +47,5 @@ async def generate_card(file: UploadFile = File(...), title: str = Form("Наз�
     img_byte_arr = io.BytesIO()
     bg.save(img_byte_arr, format='PNG')
     img_byte_arr.seek(0)
-    
-    # Отправка в чат (если передан chat_id)
-    if chat_id:
-        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
-        files = {'photo': ('card.png', img_byte_arr.getvalue(), 'image/png')}
-        data = {'chat_id': chat_id, 'caption': 'Ваша карточка готова!'}
-        try:
-            requests.post(url, files=files, data=data)
-        except Exception as e:
-            print(f"Ошибка отправки в Telegram: {e}")
-        img_byte_arr.seek(0)
     
     return StreamingResponse(img_byte_arr, media_type="image/png")
