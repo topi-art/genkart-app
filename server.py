@@ -15,7 +15,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ВАЖНО: Вставьте сюда ваш АКТУАЛЬНЫЙ токен от BotFather
+# Ваш токен от BotFather
 BOT_TOKEN = "9195903180:AAEvtP9JaGzhpbHCUQpUuDLJsAoavYw0FKU" 
 
 @app.get("/")
@@ -57,20 +57,15 @@ async def generate_card(file: UploadFile = File(...), title: str = Form("Наз�
     bg.save(img_byte_arr, format='PNG')
     img_byte_arr.seek(0)
     
-    # Отправка в Telegram с проверкой
+    # Отправка в чат (если передан chat_id)
     if chat_id:
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
         files = {'photo': ('card.png', img_byte_arr.getvalue(), 'image/png')}
         data = {'chat_id': chat_id, 'caption': 'Ваша карточка готова!'}
-        
         try:
-            tg_response = requests.post(url, files=files, data=data)
-            # Если Telegram вернул ошибку, выводим её в консоль Render (в логи)
-            if tg_response.status_code != 200:
-                print(f"ОШИБКА TELEGRAM: {tg_response.text}")
+            requests.post(url, files=files, data=data)
         except Exception as e:
-            print(f"ОШИБКА ОТПРАВКИ: {e}")
-        
-        img_byte_arr.seek(0) 
+            print(f"Ошибка отправки в Telegram: {e}")
+        img_byte_arr.seek(0)
     
     return StreamingResponse(img_byte_arr, media_type="image/png")
