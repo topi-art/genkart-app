@@ -98,21 +98,6 @@
         let currentFile = null;
         let generatedImageUrl = null;
 
-        // Функция пробуждения сервера
-        async function wakeUpServer() {
-            statusText.style.display = 'block';
-            statusText.textContent = "Подключаемся к серверу... (до 60 сек)";
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 60000);
-                await fetch('https://genkart-app.onrender.com/', { signal: controller.signal });
-                clearTimeout(timeoutId);
-                statusText.textContent = "Сервер готов к работе!";
-            } catch (e) {
-                statusText.textContent = "Сервер не отвечает. Попробуйте нажать 'Сгенерировать' позже.";
-            }
-        }
-
         uploadZone.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', (e) => {
             currentFile = e.target.files[0];
@@ -123,7 +108,6 @@
                     document.getElementById('uploadIcon').style.display = 'none';
                     document.getElementById('uploadText').style.display = 'none';
                     btnGenerate.disabled = false;
-                    wakeUpServer(); // Будим сервер сразу после загрузки фото
                 };
                 reader.readAsDataURL(currentFile);
             }
@@ -136,7 +120,7 @@
             btnGenerate.disabled = true; 
             btnGenerate.innerHTML = "Генерация... ⏳";
             statusText.style.display = 'block';
-            statusText.textContent = "Пожалуйста, подождите...";
+            statusText.textContent = "Пожалуйста, подождите (до 60 секунд)...";
 
             const formData = new FormData();
             formData.append('file', currentFile);
@@ -147,11 +131,18 @@
                 formData.append('chat_id', tg.initDataUnsafe.user.id);
             }
 
+            // УВЕЛИЧИВАЕМ ТАЙМ-АУТ ДО 60 СЕКУНД
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 60000);
+
             try {
                 const response = await fetch('https://genkart-app.onrender.com/generate-card', {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    signal: controller.signal
                 });
+                
+                clearTimeout(timeoutId); // Очищаем таймер, если успели
 
                 if (response.ok) {
                     const blob = await response.blob();
@@ -176,7 +167,11 @@
                     btnGenerate.disabled = false; btnGenerate.innerHTML = "Повторить";
                 }
             } catch (error) {
-                tg.showAlert("Ошибка сети. Попробуйте еще раз через минуту.");
+                if (error.name === 'AbortError') {
+                    tg.showAlert("Сервер слишком долго не отвечает. Попробуйте позже.");
+                } else {
+                    tg.showAlert("Ошибка сети. Попробуйте еще раз.");
+                }
                 btnGenerate.disabled = false; btnGenerate.innerHTML = "Повторить";
             } finally {
                 previewImg.classList.remove('is-loading');
@@ -186,7 +181,7 @@
         btnDownload.addEventListener('click', () => {
             if (!generatedImageUrl) return;
             tg.openLink(generatedImageUrl);
-            tg.showAlert("Картинка открыта в браузере. Нажмите на неё и выберите 'Сохранить изображение'.");
+            tg.showAlert("Картинка открыта. Нажмите на неё и выберите 'Сохранить изображение'.");
         });
     </script>
 </body>
