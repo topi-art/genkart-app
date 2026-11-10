@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ГенКарт - Генератор карточек</title>
+    <title>ГенКарт</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
@@ -11,7 +11,7 @@
             --card-bg: #1e1e1e;
             --text-main: #ffffff;
             --text-muted: #888888;
-            --accent: #bbff00; /* Кислотно-зеленый акцент */
+            --accent: #bbff00;
             --accent-text: #000000;
             --border-radius: 16px;
         }
@@ -22,7 +22,7 @@
             background-color: var(--bg-color);
             color: var(--text-main);
             padding: 16px;
-            padding-bottom: 80px; /* Отступ для нижнего меню */
+            padding-bottom: 80px;
         }
 
         /* Шапка */
@@ -102,12 +102,12 @@
         .preview-img {
             display: none;
             width: 100%;
-            height: 150px;
-            object-fit: cover;
+            height: 200px;
+            object-fit: contain;
             border-radius: 8px;
         }
 
-        /* Табы (Фото / Карточка / Видео) */
+        /* Табы */
         .tabs {
             display: flex;
             background: #121212;
@@ -131,7 +131,6 @@
             font-weight: 600;
         }
 
-        /* Настройки (заглушка) */
         .settings-placeholder {
             border: 1px dashed #333;
             border-radius: 10px;
@@ -172,6 +171,7 @@
         .results-zone {
             display: none;
             text-align: center;
+            margin-top: 10px;
         }
         .result-img {
             width: 100%;
@@ -215,13 +215,12 @@
 </head>
 <body>
 
-    <!-- Шапка -->
     <div class="header">
         <div class="logo">Gen<span>Kart</span></div>
         <button class="btn-login">Войти</button>
     </div>
 
-    <!-- Шаг 1: Загрузка -->
+    <!-- Шаг 1 -->
     <div class="step-card">
         <div class="step-header">
             <div class="step-number">1</div>
@@ -236,7 +235,7 @@
         <input type="file" id="fileInput" accept="image/*">
     </div>
 
-    <!-- Шаг 2: Настройки -->
+    <!-- Шаг 2 -->
     <div class="step-card">
         <div class="step-header">
             <div class="step-number">2</div>
@@ -259,7 +258,7 @@
         <div class="status-text" id="statusText"></div>
     </div>
 
-    <!-- Шаг 3: Результаты -->
+    <!-- Шаг 3 -->
     <div class="step-card" id="resultsCard" style="display: none;">
         <div class="step-header">
             <div class="step-number">3</div>
@@ -271,7 +270,6 @@
         </div>
     </div>
 
-    <!-- Нижнее меню (для красоты) -->
     <div class="bottom-nav">
         <div class="nav-item active">
             <div class="nav-icon">➕</div>
@@ -288,12 +286,10 @@
     </div>
 
     <script>
-        // Инициализация Telegram
         const tg = window.Telegram.WebApp;
         tg.expand();
         tg.setHeaderColor('#121212');
 
-        // Элементы DOM
         const uploadZone = document.getElementById('uploadZone');
         const fileInput = document.getElementById('fileInput');
         const previewImg = document.getElementById('previewImg');
@@ -303,12 +299,13 @@
         const btnGenerate = document.getElementById('btnGenerate');
         const statusText = document.getElementById('statusText');
         const resultsCard = document.getElementById('resultsCard');
+        const resultsZone = document.getElementById('resultsZone');
         const resultImg = document.getElementById('resultImg');
         const btnDownload = document.getElementById('btnDownload');
         const trialBadge = document.getElementById('trialBadge');
         const settingsPlaceholder = document.getElementById('settingsPlaceholder');
 
-        // Логика загрузки фото
+        // Загрузка фото
         uploadZone.addEventListener('click', () => fileInput.click());
 
         fileInput.addEventListener('change', (e) => {
@@ -323,28 +320,32 @@
                     btnChoose.style.display = 'none';
                     
                     btnGenerate.disabled = false;
-                    settingsPlaceholder.innerHTML = "✅ Фото загружено! Нажмите 'Сгенерировать', чтобы использовать пробную попытку.";
+                    settingsPlaceholder.innerHTML = "✅ Фото загружено! Нажмите 'Сгенерировать'.";
                     settingsPlaceholder.style.borderColor = "var(--accent)";
                 };
                 reader.readAsDataURL(file);
             }
         });
 
-        // Логика генерации (Пробная)
+        // Генерация
         btnGenerate.addEventListener('click', () => {
             btnGenerate.disabled = true;
             btnGenerate.innerHTML = "Генерация... ⏳";
             statusText.style.display = 'block';
-            statusText.textContent = "Нейросеть обрабатывает фото...";
+            statusText.textContent = "Обработка фото...";
 
-            // Имитация задержки сети
             setTimeout(() => {
-                // Показываем результат (в демо берем загруженное фото)
+                // Показываем результат
                 resultImg.src = previewImg.src;
                 resultsCard.style.display = 'block';
-                resultsCard.scrollIntoView({ behavior: 'smooth' });
+                resultsZone.style.display = 'block'; 
                 
-                // Тратим пробную попытку
+                // Плавно прокручиваем экран к результату
+                setTimeout(() => {
+                    resultsCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+
+                // Меняем кнопку
                 trialBadge.textContent = "✨ 0";
                 trialBadge.style.background = "#ff4444";
                 trialBadge.style.color = "#fff";
@@ -352,15 +353,14 @@
                 btnGenerate.innerHTML = "Купить подписку";
                 btnGenerate.style.background = "#333";
                 btnGenerate.style.color = "#fff";
-                statusText.textContent = "Пробная попытка использована. Для следующих генераций оформите подписку.";
+                statusText.textContent = "Пробная попытка использована.";
                 
-                // Делаем кнопку кликабельной для перехода на оплату
                 btnGenerate.disabled = false;
                 btnGenerate.onclick = () => {
                     tg.showAlert("Здесь будет подключена оплата ЮKassa!");
                 };
 
-            }, 2500);
+            }, 2000);
         });
 
         // Скачивание
