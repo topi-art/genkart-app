@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -6,369 +7,172 @@
     <title>ГенКарт</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        :root {
-            --bg-color: #121212;
-            --card-bg: #1e1e1e;
-            --text-main: #ffffff;
-            --text-muted: #888888;
-            --accent: #bbff00;
-            --accent-text: #000000;
-            --border-radius: 16px;
-        }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            padding: 16px;
-            padding-bottom: 80px;
-        }
-
-        /* Шапка */
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-            padding: 0 4px;
-        }
-        .logo { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
-        .logo span { color: var(--accent); }
-        .btn-login {
-            background: var(--card-bg);
-            color: var(--text-main);
-            border: 1px solid #333;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        /* Карточки шагов */
-        .step-card {
-            background: var(--card-bg);
-            border-radius: var(--border-radius);
-            padding: 20px;
-            margin-bottom: 16px;
-            border: 1px solid #2a2a2a;
-        }
-        .step-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 16px;
-            font-size: 16px;
-            font-weight: 600;
-        }
-        .step-number {
-            background: #333;
-            color: var(--text-muted);
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            margin-right: 10px;
-        }
-
-        /* Зона загрузки */
-        .upload-zone {
-            border: 1.5px dashed #444;
-            border-radius: 12px;
-            padding: 30px 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
-        .upload-zone:active { background: #2a2a2a; }
-        .upload-icon { font-size: 32px; margin-bottom: 10px; opacity: 0.8; }
-        .upload-text { font-size: 14px; color: var(--text-muted); margin-bottom: 15px; }
-        .btn-choose {
-            background: var(--text-main);
-            color: var(--bg-color);
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 14px;
-            cursor: pointer;
-            display: inline-block;
-        }
-        .preview-img {
-            display: none;
-            width: 100%;
-            height: 200px;
-            object-fit: contain;
-            border-radius: 8px;
-        }
-
-        /* Табы */
-        .tabs {
-            display: flex;
-            background: #121212;
-            border-radius: 10px;
-            padding: 4px;
-            margin-bottom: 16px;
-        }
-        .tab {
-            flex: 1;
-            text-align: center;
-            padding: 10px 0;
-            font-size: 14px;
-            color: var(--text-muted);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .tab.active {
-            background: #2a2a2a;
-            color: var(--text-main);
-            font-weight: 600;
-        }
-
-        .settings-placeholder {
-            border: 1px dashed #333;
-            border-radius: 10px;
-            padding: 24px;
-            text-align: center;
-            color: var(--text-muted);
-            font-size: 13px;
-            margin-bottom: 16px;
-        }
-
-        /* Кнопка генерации */
-        .btn-generate {
-            background: var(--accent);
-            color: var(--accent-text);
-            border: none;
-            width: 100%;
-            padding: 16px;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 8px;
-            transition: 0.2s;
-        }
-        .btn-generate:disabled { opacity: 0.5; cursor: not-allowed; }
+        :root { --bg: #121212; --card: #1e1e1e; --text: #ffffff; --muted: #888888; --accent: #bbff00; --accent-txt: #000000; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body { background: var(--bg); color: var(--text); padding: 16px; padding-bottom: 80px; }
         
-        .badge {
-            background: rgba(0,0,0,0.2);
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 12px;
-        }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .logo { font-size: 20px; font-weight: 800; } .logo span { color: var(--accent); }
+        
+        .step-card { background: var(--card); border-radius: 16px; padding: 20px; margin-bottom: 16px; border: 1px solid #2a2a2a; }
+        .step-header { display: flex; align-items: center; margin-bottom: 16px; font-size: 16px; font-weight: 600; }
+        .step-number { background: #333; color: var(--muted); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; margin-right: 10px; }
+        
+        /* Загрузка фото */
+        .upload-zone { border: 1.5px dashed #444; border-radius: 12px; padding: 30px 20px; text-align: center; cursor: pointer; }
+        .preview-img { display: none; width: 100%; height: 200px; object-fit: contain; border-radius: 8px; }
+        .upload-icon { font-size: 32px; margin-bottom: 10px; }
+        
+        /* Вкладки */
+        .tabs { display: flex; background: #121212; border-radius: 10px; padding: 4px; margin-bottom: 16px; }
+        .tab { flex: 1; text-align: center; padding: 10px 0; font-size: 14px; color: var(--muted); border-radius: 8px; cursor: pointer; font-weight: 600; }
+        .tab.active { background: #2a2a2a; color: var(--text); }
+        
+        /* Настройки */
+        .input-text { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #333; background: #121212; color: white; margin-bottom: 10px; font-size: 14px; }
+        .input-text::placeholder { color: #555; }
+        
+        .style-options { display: flex; gap: 8px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 5px; }
+        .style-btn { background: #2a2a2a; color: var(--text); border: 1px solid #333; padding: 8px 12px; border-radius: 8px; font-size: 12px; white-space: nowrap; cursor: pointer; }
+        .style-btn.active { border-color: var(--accent); color: var(--accent); }
 
-        /* Блок результатов */
-        .results-zone {
-            display: none;
-            text-align: center;
-            margin-top: 10px;
-        }
-        .result-img {
-            width: 100%;
-            border-radius: 12px;
-            margin-bottom: 12px;
-        }
-        .status-text {
-            font-size: 13px;
-            color: var(--accent);
-            text-align: center;
-            margin-top: 10px;
-            display: none;
-        }
-
-        /* Нижнее меню */
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: var(--card-bg);
-            display: flex;
-            justify-content: space-around;
-            padding: 12px 0;
-            border-top: 1px solid #2a2a2a;
-            z-index: 100;
-        }
-        .nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            font-size: 11px;
-            color: var(--text-muted);
-            cursor: pointer;
-        }
-        .nav-item.active { color: var(--text-main); }
-        .nav-icon { font-size: 20px; margin-bottom: 4px; }
-
+        /* Кнопка */
+        .btn-generate { background: var(--accent); color: var(--accent-txt); border: none; width: 100%; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; }
+        .btn-generate:disabled { opacity: 0.7; }
+        
+        /* Результат */
+        .result-img { display: none; width: 100%; border-radius: 12px; margin-top: 10px; }
+        .status-text { font-size: 13px; color: var(--accent); text-align: center; margin-top: 10px; display: none; }
+        
         input[type="file"] { display: none; }
     </style>
 </head>
 <body>
+    <div class="header"><div class="logo">Gen<span>Kart</span></div></div>
 
-    <div class="header">
-        <div class="logo">Gen<span>Kart</span></div>
-        <button class="btn-login">Войти</button>
-    </div>
-
-    <!-- Шаг 1 -->
+    <!-- Шаг 1: Загрузка -->
     <div class="step-card">
-        <div class="step-header">
-            <div class="step-number">1</div>
-            Ваш товар
-        </div>
+        <div class="step-header"><div class="step-number">1</div>Ваш товар</div>
         <div class="upload-zone" id="uploadZone">
             <div class="upload-icon" id="uploadIcon">📦</div>
-            <div class="upload-text" id="uploadText">Добавьте фото товара</div>
-            <button class="btn-choose" id="btnChoose">+ Выбрать фото</button>
-            <img id="previewImg" class="preview-img" src="" alt="Превью">
+            <div id="uploadText" style="color: var(--muted); font-size: 14px;">Добавьте фото товара</div>
+            <img id="previewImg" class="preview-img">
         </div>
         <input type="file" id="fileInput" accept="image/*">
     </div>
 
-    <!-- Шаг 2 -->
+    <!-- Шаг 2: Настройки -->
     <div class="step-card">
-        <div class="step-header">
-            <div class="step-number">2</div>
-            Настройте генерацию
-        </div>
+        <div class="step-header"><div class="step-number">2</div>Настройте генерацию</div>
         
+        <!-- Вкладки -->
         <div class="tabs">
-            <div class="tab active">Фото</div>
-            <div class="tab">Карточка</div>
-            <div class="tab">Видео</div>
+            <div class="tab active" onclick="selectTab(this)">Фото</div>
+            <div class="tab" onclick="selectTab(this)">Карточка</div>
+            <div class="tab" onclick="selectTab(this)">Видео</div>
         </div>
 
-        <div class="settings-placeholder" id="settingsPlaceholder">
-            Загрузите фото товара — и здесь появятся настройки стиля
+        <!-- Поля ввода -->
+        <input type="text" id="titleInput" class="input-text" placeholder="Заголовок (например: CELIMAX)">
+        <input type="text" id="subtitleInput" class="input-text" placeholder="Подзаголовок (например: Молочный тонер)">
+        
+        <!-- Выбор стиля -->
+        <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">Стиль фона:</div>
+        <div class="style-options">
+            <div class="style-btn active">Градиент</div>
+            <div class="style-btn">Мрамор</div>
+            <div class="style-btn">Дерево</div>
+            <div class="style-btn">Студия</div>
         </div>
 
         <button class="btn-generate" id="btnGenerate" disabled>
-            Сгенерировать <span class="badge" id="trialBadge">✨ 1</span>
+            Сгенерировать <span id="trialBadge">✨ 1</span>
         </button>
         <div class="status-text" id="statusText"></div>
     </div>
 
-    <!-- Шаг 3 -->
+    <!-- Шаг 3: Результат -->
     <div class="step-card" id="resultsCard" style="display: none;">
-        <div class="step-header">
-            <div class="step-number">3</div>
-            Результаты
-        </div>
-        <div class="results-zone" id="resultsZone">
-            <img id="resultImg" class="result-img" src="" alt="Результат">
-            <button class="btn-choose" id="btnDownload" style="width: 100%;">Скачать карточку</button>
-        </div>
-    </div>
-
-    <div class="bottom-nav">
-        <div class="nav-item active">
-            <div class="nav-icon">➕</div>
-            <div>Создать</div>
-        </div>
-        <div class="nav-item">
-            <div class="nav-icon">📁</div>
-            <div>Проекты</div>
-        </div>
-        <div class="nav-item">
-            <div class="nav-icon">👤</div>
-            <div>Профиль</div>
-        </div>
+        <div class="step-header"><div class="step-number">3</div>Результаты</div>
+        <img id="resultImg" class="result-img">
     </div>
 
     <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
-        tg.setHeaderColor('#121212');
-
-        const uploadZone = document.getElementById('uploadZone');
-        const fileInput = document.getElementById('fileInput');
-        const previewImg = document.getElementById('previewImg');
-        const uploadIcon = document.getElementById('uploadIcon');
-        const uploadText = document.getElementById('uploadText');
-        const btnChoose = document.getElementById('btnChoose');
-        const btnGenerate = document.getElementById('btnGenerate');
+        const tg = window.Telegram.WebApp; tg.expand(); tg.setHeaderColor('#121212');
+        
+        const uploadZone = document.getElementById('uploadZone'), fileInput = document.getElementById('fileInput');
+        const previewImg = document.getElementById('previewImg'), btnGenerate = document.getElementById('btnGenerate');
+        const resultsCard = document.getElementById('resultsCard'), resultImg = document.getElementById('resultImg');
         const statusText = document.getElementById('statusText');
-        const resultsCard = document.getElementById('resultsCard');
-        const resultsZone = document.getElementById('resultsZone');
-        const resultImg = document.getElementById('resultImg');
-        const btnDownload = document.getElementById('btnDownload');
-        const trialBadge = document.getElementById('trialBadge');
-        const settingsPlaceholder = document.getElementById('settingsPlaceholder');
+        let currentFile = null;
+
+        // Логика вкладок
+        function selectTab(el) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+        }
 
         // Загрузка фото
         uploadZone.addEventListener('click', () => fileInput.click());
-
         fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
+            currentFile = e.target.files[0];
+            if (currentFile) {
                 const reader = new FileReader();
-                reader.onload = (event) => {
-                    previewImg.src = event.target.result;
-                    previewImg.style.display = 'block';
-                    uploadIcon.style.display = 'none';
-                    uploadText.style.display = 'none';
-                    btnChoose.style.display = 'none';
-                    
+                reader.onload = (ev) => {
+                    previewImg.src = ev.target.result; previewImg.style.display = 'block';
+                    document.getElementById('uploadIcon').style.display = 'none';
+                    document.getElementById('uploadText').style.display = 'none';
                     btnGenerate.disabled = false;
-                    settingsPlaceholder.innerHTML = "✅ Фото загружено! Нажмите 'Сгенерировать'.";
-                    settingsPlaceholder.style.borderColor = "var(--accent)";
                 };
-                reader.readAsDataURL(file);
+                reader.readAsDataURL(currentFile);
             }
         });
 
         // Генерация
-        btnGenerate.addEventListener('click', () => {
-            btnGenerate.disabled = true;
+        btnGenerate.addEventListener('click', async () => {
+            if (!currentFile) return;
+            btnGenerate.disabled = true; 
             btnGenerate.innerHTML = "Генерация... ⏳";
             statusText.style.display = 'block';
-            statusText.textContent = "Обработка фото...";
+            statusText.textContent = "Сервер обрабатывает фото...";
 
-            setTimeout(() => {
-                // Показываем результат
-                resultImg.src = previewImg.src;
-                resultsCard.style.display = 'block';
-                resultsZone.style.display = 'block'; 
-                
-                // Плавно прокручиваем экран к результату
-                setTimeout(() => {
-                    resultsCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 100);
+            const formData = new FormData();
+            formData.append('file', currentFile);
+            formData.append('title', document.getElementById('titleInput').value || "Название товара");
+            formData.append('subtitle', document.getElementById('subtitleInput').value || "Описание товара");
 
-                // Меняем кнопку
-                trialBadge.textContent = "✨ 0";
-                trialBadge.style.background = "#ff4444";
-                trialBadge.style.color = "#fff";
-                
-                btnGenerate.innerHTML = "Купить подписку";
-                btnGenerate.style.background = "#333";
-                btnGenerate.style.color = "#fff";
-                statusText.textContent = "Пробная попытка использована.";
-                
-                btnGenerate.disabled = false;
-                btnGenerate.onclick = () => {
-                    tg.showAlert("Здесь будет подключена оплата ЮKassa!");
-                };
+            try {
+                // Отправляем на наш сервер Render
+                const response = await fetch('https://genkart-app.onrender.com/generate-card', {
+                    method: 'POST',
+                    body: formData
+                });
 
-            }, 2000);
-        });
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const imageUrl = URL.createObjectURL(blob);
+                    resultImg.src = imageUrl; 
+                    resultImg.style.display = 'block';
+                    resultsCard.style.display = 'block';
+                    
+                    // Прокрутка к результату
+                    setTimeout(() => {
+                        resultsCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 100);
 
-        // Скачивание
-        btnDownload.addEventListener('click', () => {
-            const link = document.createElement('a');
-            link.download = 'genkart-result.png';
-            link.href = resultImg.src;
-            link.click();
+                    document.getElementById('trialBadge').textContent = "✨ 0";
+                    btnGenerate.innerHTML = "Купить подписку";
+                    btnGenerate.style.background = "#333"; 
+                    btnGenerate.style.color = "#fff";
+                    statusText.textContent = "Пробная попытка использована.";
+                } else {
+                    tg.showAlert("Ошибка на сервере. Попробуйте другое фото.");
+                    btnGenerate.disabled = false; btnGenerate.innerHTML = "Повторить";
+                }
+            } catch (error) {
+                tg.showAlert("Ошибка сети. Проверьте интернет.");
+                btnGenerate.disabled = false; btnGenerate.innerHTML = "Повторить";
+            }
         });
     </script>
 </body>
