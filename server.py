@@ -1,9 +1,9 @@
-
 from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import io
+import requests
 
 app = FastAPI()
 
@@ -15,40 +15,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+BOT_TOKEN = "9195903180:AAEvtP9JaGzhpbHCUQpUuDLJsAoavYw0FKU" # Ваш токен
+
 @app.get("/")
 def read_root():
     return {"status": "ok", "message": "Бэкенд ГенКарт работает!"}
 
 @app.post("/generate-card")
-async def generate_card(file: UploadFile = File(...), title: str = Form("Название"), subtitle: str = Form("Описание")):
-    # 1. Читаем фото
+async def generate_card(file: UploadFile = File(...), title: str = Form("Название"), subtitle: str = Form("Описание"), chat_id: str = Form(None)):
     image_data = await file.read()
     img = Image.open(io.BytesIO(image_data)).convert("RGBA")
     
-    # 2. Создаем фон (градиент)
     bg = Image.new("RGB", (1080, 1080), (240, 240, 245))
     draw = ImageDraw.Draw(bg)
     for y in range(1080):
         color = int(240 - (y / 1080) * 30)
         draw.line([(0, y), (1080, y)], fill=(color, color, color + 5))
     
-    # 3. Накладываем тень (эффект объема)
-    shadow = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    shadow_draw = ImageDraw.Draw(shadow)
-    shadow_draw.ellipse((0, 0, img.width, img.height), fill=(0, 0, 0, 100))
-    shadow = shadow.filter(ImageFilter.GaussianBlur(20))
-    
-    # 4. Вставляем товар
     img.thumbnail((800, 800))
     x = (1080 - img.width) // 2
     y = (1080 - img.height) // 2 + 50
     
-    # Рисуем тень под товаром
-    bg.paste(shadow, (x, y + 20), shadow)
-    # Рисуем сам товар
+    shadow = Image.new("RGBA", (img.width + 40, img.height + 40), (0, 0, 0, 0))
+    ImageDraw.Draw(shadow).ellipse((20, 20, img.width + 20, img.height + 20), fill=(0, 0, 0, 80))
+    shadow = shadow.filter(ImageFilter.GaussianBlur(15))
+    bg.paste(shadow, (x - 20, y + 10), shadow)
     bg.paste(img, (x, y), img)
     
-    # 5. Добавляем текст
     try:
         font_title = ImageFont.truetype("arial.ttf", 60)
         font_sub = ImageFont.truetype("arial.ttf", 40)
@@ -59,9 +52,16 @@ async def generate_card(file: UploadFile = File(...), title: str = Form("Наз�
     draw.text((100, 100), title, fill=(40, 40, 40), font=font_title)
     draw.text((100, 180), subtitle, fill=(100, 100, 100), font=font_sub)
     
-    # 6. Отправляем результат
     img_byte_arr = io.BytesIO()
     bg.save(img_byte_arr, format='PNG')
     img_byte_arr.seek(0)
+    
+    # Если передан chat_id, отправляем картинку прямо в Telegram
+    if chat_id:
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
+        files = {'photo': ('card.png', img_byte_arr.getvalue(), 'image/png')}
+        data = {'chat_id': chat_id, 'caption': 'Ваша карточка готова! Нажмите на неё, чтобы сохранить.'}
+        requests.post(url, files=files, data=data)
+        img_byte_arr.seek(0) # Сбрасываем указатель для отправки на сайт
     
     return StreamingResponse(img_byte_arr, media_type="image/png")
