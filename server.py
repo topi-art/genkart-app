@@ -17,11 +17,13 @@ app.add_middleware(
 
 BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
 
+# ФОНЫ И ИХ КООРДИНАТЫ (X, Y) ДЛЯ ПОЗИЦИИ ТОВАРА
+# Вам нужно будет подогнать эти цифры под свои картинки!
 BACKGROUNDS = {
-    "bg1": "Screenshot_20261111_135917_Pinterest.jpg",
-    "bg2": "Screenshot_20261111_140017_Pinterest.jpg",
-    "bg3": "Screenshot_20261111_140026_Pinterest.jpg",
-    "bg4": "Screenshot_20261111_140051_Pinterest.jpg"
+    "bg1": {"file": "Screenshot_20261111_135917_Pinterest.jpg", "x": 350, "y": 450},
+    "bg2": {"file": "Screenshot_20261111_140017_Pinterest.jpg", "x": 350, "y": 450},
+    "bg3": {"file": "Screenshot_20261111_140026_Pinterest.jpg", "x": 350, "y": 400},
+    "bg4": {"file": "Screenshot_20261111_140051_Pinterest.jpg", "x": 350, "y": 450}
 }
 
 @app.get("/")
@@ -41,14 +43,14 @@ async def generate_card(
 ):
     image_data = await file.read()
     
-    # 1. Удаляем фон
+    # 1. Удаляем фон (используем remove.bg, т.к. он лучше вырезает)
     product_img = None
     try:
         response = requests.post(
             'https://api.remove.bg/v1.0/removebg',
             files={'image_file': image_data},
             data={'size': 'auto'},
-            timeout=15
+            timeout=25
         )
         if response.status_code == 200 and response.headers.get('content-type', '').startswith('image'):
             product_img = Image.open(io.BytesIO(response.content)).convert("RGBA")
@@ -58,10 +60,10 @@ async def generate_card(
     if not product_img:
         product_img = Image.open(io.BytesIO(image_data)).convert("RGBA")
 
-    # 2. Фон
-    bg_filename = BACKGROUNDS.get(background, "Screenshot_20261111_135917_Pinterest.jpg")
+    # 2. Загружаем фон и координаты
+    bg_info = BACKGROUNDS.get(background, BACKGROUNDS["bg1"])
     try:
-        bg = Image.open(bg_filename).convert("RGBA")
+        bg = Image.open(bg_info["file"]).convert("RGBA")
         bg = bg.resize((1080, 1080))
     except:
         bg = Image.new("RGB", (1080, 1080), (245, 245, 247))
@@ -82,55 +84,44 @@ async def generate_card(
 
     draw = ImageDraw.Draw(bg)
 
-    # 4. Логика шаблонов
+    # 4. Товар и его позиция
+    product_img.thumbnail((450, 450)) # Делаем товар чуть меньше, чтобы он влез на подиум
+    x = bg_info["x"]
+    y = bg_info["y"]
+
+    # 5. Логика шаблонов текста
     if template == "template1":
         # Классика (текст сверху)
-        product_img.thumbnail((600, 600))
-        x = (1080 - product_img.width) // 2
-        y = (1080 - product_img.height) // 2 + 100
-        
         draw.rectangle([(0, 0), (1080, 200)], fill=(255, 255, 255, 200))
         draw.text((80, 50), title, fill=(30, 30, 30), font=font_title)
         draw.text((80, 130), subtitle, fill=(100, 100, 100), font=font_sub)
 
     elif template == "template2":
-        # Асимметрия (текст слева на плашке)
-        product_img.thumbnail((600, 600))
-        x = 1080 - product_img.width - 50
-        y = (1080 - product_img.height) // 2
-        
+        # Асимметрия (текст слева)
         draw.rounded_rectangle([(40, 250), (500, 750)], radius=30, fill=(255, 255, 255, 230))
         draw.text((80, 300), title, fill=(30, 30, 30), font=font_title)
         draw.text((80, 400), subtitle, fill=(100, 100, 100), font=font_sub)
 
     elif template == "template3":
-        # ИНФОГРАФИКА (текст слева без плашки, товар справа)
-        product_img.thumbnail((650, 650))
-        x = 1080 - product_img.width - 30
-        y = (1080 - product_img.height) // 2 + 50
-        
-        # Текст слева
+        # Инфографика (текст слева, иконки)
         draw.text((60, 150), title, fill=(30, 30, 30), font=font_title)
         draw.text((60, 250), subtitle, fill=(100, 100, 100), font=font_sub)
-        
-        # Рисуем кружочки-иконки (заглушки)
         for i in range(3):
             cy = 350 + i * 120
             draw.ellipse([(60, cy), (120, cy + 60)], fill=(230, 230, 230))
             draw.text((150, cy + 10), "Преимущество", fill=(80, 80, 80), font=font_sub)
 
-    # 5. Тень и товар
-    if 'x' in locals() and 'y' in locals():
-        shadow = Image.new("RGBA", bg.size, (0, 0, 0, 0))
-        shadow_draw = ImageDraw.Draw(shadow)
-        shadow_bbox = (x + 20, y + product_img.height - 50, x + product_img.width - 20, y + product_img.height + 50)
-        shadow_draw.ellipse(shadow_bbox, fill=(0, 0, 0, 120))
-        shadow = shadow.filter(ImageFilter.GaussianBlur(20))
-        
-        bg.paste(shadow, (0, 0), shadow)
-        bg.paste(product_img, (x, y), product_img)
+    # 6. Тень и товар
+    shadow = Image.new("RGBA", bg.size, (0, 0, 0, 0))
+    shadow_draw = ImageDraw.Draw(shadow)
+    shadow_bbox = (x + 20, y + product_img.height - 50, x + product_img.width - 20, y + product_img.height + 50)
+    shadow_draw.ellipse(shadow_bbox, fill=(0, 0, 0, 120))
+    shadow = shadow.filter(ImageFilter.GaussianBlur(20))
+    
+    bg.paste(shadow, (0, 0), shadow)
+    bg.paste(product_img, (x, y), product_img)
 
-    # 6. Отправка
+    # 7. Отправка
     img_byte_arr = io.BytesIO()
     bg.save(img_byte_arr, format='PNG')
     img_byte_arr.seek(0)
