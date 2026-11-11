@@ -4,7 +4,6 @@ from fastapi.responses import StreamingResponse
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import io
 import requests
-from rembg import remove, new_session
 
 app = FastAPI()
 
@@ -17,9 +16,6 @@ app.add_middleware(
 )
 
 BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
-
-# Создаем легкую сессию (модель u2netp весит мало)
-session = new_session("u2netp")
 
 BACKGROUNDS = {
     "bg1": {"file": "Screenshot_20261111_135917_Pinterest.jpg", "x": 350, "y": 450},
@@ -45,12 +41,23 @@ async def generate_card(
 ):
     image_data = await file.read()
     
-    # 1. УДАЛЯЕМ ФОН НА СЕРВЕРЕ (легкая модель)
+    # 1. УДАЛЯЕМ ФОН ЧЕРЕЗ REMOVE.BG
+    product_img = None
     try:
-        product_img = remove(image_data, session=session)
-        product_img = Image.open(io.BytesIO(product_img)).convert("RGBA")
+        response = requests.post(
+            'https://api.remove.bg/v1.0/removebg',
+            files={'image_file': image_data},
+            data={'size': 'auto'},
+            timeout=25
+        )
+        if response.status_code == 200 and response.headers.get('content-type', '').startswith('image'):
+            product_img = Image.open(io.BytesIO(response.content)).convert("RGBA")
+        else:
+            print(f"ОШИБКА REMOVE.BG: {response.text}")
     except Exception as e:
-        print(f"ОШИБКА REMBG: {e}")
+        print(f"ОШИБКА REMOVE.BG: {e}")
+
+    if not product_img:
         product_img = Image.open(io.BytesIO(image_data)).convert("RGBA")
 
     # 2. Фон
