@@ -17,9 +17,6 @@ app.add_middleware(
 
 BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
 
-# ВАШ КЛЮЧ ОТ POOF
-POOF_API_KEY = "pk_99ed372f4d6bfc5f2930fb8776a57493"
-
 BACKGROUNDS = {
     "bg1": {"file": "Screenshot_20261111_135917_Pinterest.jpg", "x": 350, "y": 450},
     "bg2": {"file": "Screenshot_20261111_140017_Pinterest.jpg", "x": 350, "y": 450},
@@ -44,22 +41,28 @@ async def generate_card(
 ):
     image_data = await file.read()
     
-    # 1. УДАЛЯЕМ ФОН ЧЕРЕЗ POOF
+    # 1. УДАЛЯЕМ ФОН ЧЕРЕЗ БЕСПЛАТНЫЙ PUBLIC API HUGGING FACE
     product_img = None
     try:
+        # Отправляем на бесплатный публичный сервис
         response = requests.post(
-            'https://api.poof.bg/v1/removebg',
-            files={'image_file': ('image.jpg', image_data, 'image/jpeg')},
-            headers={'x-api-key': POOF_API_KEY},
-            timeout=25
+            'https://u2net-remove-background.hf.space/api/predict',
+            files={'image': ('image.jpg', image_data, 'image/jpeg')},
+            timeout=30
         )
         if response.status_code == 200:
-            product_img = Image.open(io.BytesIO(response.content)).convert("RGBA")
+            import base64
+            data = response.json()
+            if 'data' in data and len(data['data']) > 0:
+                # Декодируем base64 картинку
+                img_data = base64.b64decode(data['data'][0].split(',')[1])
+                product_img = Image.open(io.BytesIO(img_data)).convert("RGBA")
         else:
-            print(f"ОШИБКА POOF: {response.text}")
+            print(f"ОШИБКА HF: {response.text}")
     except Exception as e:
-        print(f"ОШИБКА POOF: {e}")
+        print(f"ОШИБКА HF: {e}")
 
+    # Если не сработало, берем оригинал
     if not product_img:
         product_img = Image.open(io.BytesIO(image_data)).convert("RGBA")
 
