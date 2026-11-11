@@ -16,6 +16,8 @@ app.add_middleware(
 )
 
 BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
+
+# ВАШ КЛЮЧ ОТ POOF
 POOF_API_KEY = "pk_99ed372f4d6bfc5f2930fb8776a57493"
 
 BACKGROUNDS = {
