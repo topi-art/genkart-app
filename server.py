@@ -18,18 +18,17 @@ app.add_middleware(
 
 BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
 
-# ВСЕ 10 ФОНОВ
 BACKGROUNDS = {
-    "bg1": "Screenshot_20261111_185802_Pinterest.jpg", # Белые облака
-    "bg2": "Screenshot_20261111_190005_Pinterest.jpg", # Лента
-    "bg3": "Screenshot_20261111_185931_Pinterest.jpg", # Травертин
-    "bg4": "Screenshot_20261111_190043_Pinterest.jpg", # Бордовая ткань
-    "bg5": "Screenshot_20261111_190100_Pinterest.jpg", # Жидкое стекло
-    "bg6": "Screenshot_20261111_185352_Pinterest.jpg", # Пузыри
-    "bg7": "Screenshot_20261111_185847_Pinterest.jpg", # Розовые облака
-    "bg8": "Screenshot_20261111_185912_Pinterest.jpg", # Скалы
-    "bg9": "Screenshot_20261111_190025_Pinterest.jpg", # Розовая ткань
-    "bg10": "Screenshot_20261111_185521_Pinterest.jpg" # Оливковый подиум
+    "bg1": "Screenshot_20261111_185802_Pinterest.jpg",
+    "bg2": "Screenshot_20261111_190005_Pinterest.jpg",
+    "bg3": "Screenshot_20261111_185931_Pinterest.jpg",
+    "bg4": "Screenshot_20261111_190043_Pinterest.jpg",
+    "bg5": "Screenshot_20261111_190100_Pinterest.jpg",
+    "bg6": "Screenshot_20261111_185352_Pinterest.jpg",
+    "bg7": "Screenshot_20261111_185847_Pinterest.jpg",
+    "bg8": "Screenshot_20261111_185912_Pinterest.jpg",
+    "bg9": "Screenshot_20261111_190025_Pinterest.jpg",
+    "bg10": "Screenshot_20261111_185521_Pinterest.jpg"
 }
 
 @app.get("/")
@@ -110,46 +109,68 @@ async def generate_card(
     else:
         product_img.thumbnail((700, 700))
 
-    # 6. ЛОГИКА РАЗМЕЩЕНИЯ
+    # 6. ЛОГИКА РАЗМЕЩЕНИЯ И КРАСИВЫЙ ТЕКСТ
     if template == "template1": # Сверху
         x = (1080 - product_img.width) // 2 
-        y = 400
+        y = 500
+        
+        # Подложка (закругленная, полупрозрачная)
+        draw.rounded_rectangle([(40, 40), (1040, 220)], radius=20, fill=(255, 255, 255, 200))
+        
+        # Заголовок (черный, крупный)
         title_bbox = draw.textbbox((0, 0), title, font=font_title)
-        draw.text(((1080 - (title_bbox[2] - title_bbox[0])) // 2, 80), title, fill=(30, 30, 30), font=font_title)
+        draw.text(((1080 - (title_bbox[2] - title_bbox[0])) // 2, 60), title, fill=(30, 30, 30), font=font_title)
+        
+        # Подзаголовок (серый, мелкий)
         sub_bbox = draw.textbbox((0, 0), subtitle, font=font_sub)
-        draw.text(((1080 - (sub_bbox[2] - sub_bbox[0])) // 2, 160), subtitle, fill=(100, 100, 100), font=font_sub)
+        draw.text(((1080 - (sub_bbox[2] - sub_bbox[0])) // 2, 150), subtitle, fill=(100, 100, 100), font=font_sub)
 
     elif template == "template2": # Слева
         x = 1080 - product_img.width - 50
-        y = 400
-        draw.text((80, 300), title, fill=(255, 255, 255), font=font_title)
-        draw.text((80, 400), subtitle, fill=(200, 200, 200), font=font_sub)
+        y = 500
+        
+        # Подложка слева
+        draw.rounded_rectangle([(40, 250), (520, 520)], radius=20, fill=(255, 255, 255, 200))
+        
+        draw.text((60, 280), title, fill=(30, 30, 30), font=font_title)
+        draw.text((60, 380), subtitle, fill=(100, 100, 100), font=font_sub)
 
     elif template == "template3": # Справа
         x = 50
-        y = 400
-        draw.text((550, 300), title, fill=(255, 255, 255), font=font_title)
-        draw.text((550, 400), subtitle, fill=(200, 200, 200), font=font_sub)
+        y = 500
+        
+        # Подложка справа
+        draw.rounded_rectangle([(560, 250), (1040, 520)], radius=20, fill=(255, 255, 255, 200))
+        
+        draw.text((580, 280), title, fill=(30, 30, 30), font=font_title)
+        draw.text((580, 380), subtitle, fill=(100, 100, 100), font=font_sub)
 
     elif template == "template4": # Инфографика
         x = 1080 - product_img.width - 50
-        y = 400
-        draw.text((80, 150), title, fill=(255, 255, 255), font=font_title)
-        draw.text((80, 250), subtitle, fill=(200, 200, 200), font=font_sub)
+        y = 500
+        
+        # Подложка слева
+        draw.rounded_rectangle([(40, 150), (520, 650)], radius=20, fill=(255, 255, 255, 200))
+        
+        draw.text((60, 180), title, fill=(30, 30, 30), font=font_title)
+        draw.text((60, 280), subtitle, fill=(100, 100, 100), font=font_sub)
+        
         if features:
             feature_lines = features.split('\n')
             for i, line in enumerate(feature_lines[:4]):
-                cy = 350 + i * 80
-                draw.text((80, cy), line, fill=(255, 255, 255), font=font_features)
+                cy = 380 + i * 60
+                # Рисуем кружочек перед текстом
+                draw.ellipse([(60, cy + 10), (80, cy + 30)], fill=(255, 42, 117)) # Малиновый акцент
+                draw.text((100, cy), line, fill=(50, 50, 50), font=font_features)
 
     # 7. ТЕНЬ И ТОВАР
     if not is_video:
         if template in ["template1", "template2", "template3"]:
             shadow = Image.new("RGBA", bg.size, (0, 0, 0, 0))
             shadow_draw = ImageDraw.Draw(shadow)
-            shadow_bbox = (x + 20, y + product_img.height - 30, x + product_img.width - 20, y + product_img.height + 30)
-            shadow_draw.ellipse(shadow_bbox, fill=(0, 0, 0, 100))
-            shadow = shadow.filter(ImageFilter.GaussianBlur(15))
+            shadow_bbox = (x + 20, y + product_img.height - 20, x + product_img.width - 20, y + product_img.height + 40)
+            shadow_draw.ellipse(shadow_bbox, fill=(0, 0, 0, 120))
+            shadow = shadow.filter(ImageFilter.GaussianBlur(20))
             bg.paste(shadow, (0, 0), shadow)
         bg.paste(product_img, (x, y), product_img)
         
@@ -174,9 +195,9 @@ async def generate_card(
             if template in ["template1", "template2", "template3"]:
                 shadow = Image.new("RGBA", frame.size, (0, 0, 0, 0))
                 shadow_draw = ImageDraw.Draw(shadow)
-                shadow_bbox = (rx + 20, ry + rotated_product.height - 30, rx + rotated_product.width - 20, ry + rotated_product.height + 30)
-                shadow_draw.ellipse(shadow_bbox, fill=(0, 0, 0, 100))
-                shadow = shadow.filter(ImageFilter.GaussianBlur(15))
+                shadow_bbox = (rx + 20, ry + rotated_product.height - 20, rx + rotated_product.width - 20, ry + rotated_product.height + 40)
+                shadow_draw.ellipse(shadow_bbox, fill=(0, 0, 0, 120))
+                shadow = shadow.filter(ImageFilter.GaussianBlur(20))
                 frame.paste(shadow, (0, 0), shadow)
                 
             frame.paste(rotated_product, (rx, ry), rotated_product)
