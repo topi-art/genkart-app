@@ -17,7 +17,6 @@ app.add_middleware(
 
 BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
 
-# СЛОВАРЬ ФОНОВ (ключ = имя, значение = имя файла на GitHub)
 BACKGROUNDS = {
     "bg1": "Screenshot_20261111_135917_Pinterest.jpg",
     "bg2": "Screenshot_20261111_140017_Pinterest.jpg",
@@ -34,15 +33,31 @@ async def generate_card(
     file: UploadFile = File(...), 
     title: str = Form("Название"), 
     subtitle: str = Form("Описание"),
-    background: str = Form("bg1"), # Выбор фона
+    background: str = Form("bg1"),
+    template: str = Form("template1"),
     font_style: str = Form("sans"),
     font_size: str = Form("normal"),
     chat_id: str = Form(None)
 ):
     image_data = await file.read()
-    img = Image.open(io.BytesIO(image_data)).convert("RGBA")
     
-    # 1. Загружаем выбранный фон
+    # 1. Удаляем фон у фото (через бесплатный сервис)
+    try:
+        response = requests.post(
+            'https://api.nobg.io/removebg',
+            files={'image_file': image_data},
+            data={'size': 'auto'},
+            timeout=10
+        )
+        if response.status_code == 200:
+            product_img = Image.open(io.BytesIO(response.content)).convert("RGBA")
+        else:
+            raise Exception("API не сработал")
+    except:
+        # Если не сработало, берем оригинал
+        product_img = Image.open(io.BytesIO(image_data)).convert("RGBA")
+
+    # 2. Загружаем фон
     bg_filename = BACKGROUNDS.get(background, "Screenshot_20261111_135917_Pinterest.jpg")
     try:
         bg = Image.open(bg_filename).convert("RGBA")
@@ -50,36 +65,52 @@ async def generate_card(
     except:
         bg = Image.new("RGB", (1080, 1080), (245, 245, 247))
 
-    draw = ImageDraw.Draw(bg)
-    
-    # 2. Настройка шрифтов
+    # 3. Шрифты
     font_paths = {"sans": "DejaVuSans-Bold.ttf", "serif": "DejaVuSerif-Bold.ttf"}
     font_path = font_paths.get(font_style, "DejaVuSans-Bold.ttf")
     sizes = {"small": 40, "normal": 60, "large": 80}
     title_size = sizes.get(font_size, 60)
+    sub_size = title_size - 20 if title_size > 40 else 30
     
     try:
         font_title = ImageFont.truetype(font_path, title_size)
+        font_sub = ImageFont.truetype(font_path, sub_size)
     except:
         font_title = ImageFont.load_default()
+        font_sub = ImageFont.load_default()
 
-    # 3. Вставляем товар (с маской-кругом, чтобы смотрелось как на подиуме)
-    img.thumbnail((700, 700))
-    mask = Image.new("L", img.size, 0)
-    draw_mask = ImageDraw.Draw(mask)
-    draw_mask.ellipse((0, 0, img.width, img.height), fill=255)
+    # 4. Позиционируем товар и рисуем тень
+    product_img.thumbnail((600, 600))
+    x = (1080 - product_img.width) // 2
+    y = (1080 - product_img.height) // 2 + 100
     
-    x = (1080 - img.width) // 2
-    y = (1080 - img.height) // 2 + 50
+    # Создаем тень
+    shadow = Image.new("RGBA", bg.size, (0, 0, 0, 0))
+    shadow_draw = ImageDraw.Draw(shadow)
+    shadow_bbox = (x + 20, y + product_img.height - 50, x + product_img.width - 20, y + product_img.height + 50)
+    shadow_draw.ellipse(shadow_bbox, fill=(0, 0, 0, 120))
+    shadow = shadow.filter(ImageFilter.GaussianBlur(20))
     
-    bg.paste(img, (x, y), mask)
-    
-    # 4. Добавляем текст
-    # Для контраста на разных фонах используем белый или черный цвет (пока белый)
-    draw.text((80, 80), title, fill=(255, 255, 255), font=font_title)
-    draw.text((80, 160), subtitle, fill=(200, 200, 200), font=font_title)
+    # Накладываем тень и товар
+    bg.paste(shadow, (0, 0), shadow)
+    bg.paste(product_img, (x, y), product_img)
 
-    # 5. Сохраняем и отправляем
+    # 5. Текст по шаблону
+    draw = ImageDraw.Draw(bg)
+    
+    if template == "template1":
+        # Классика
+        draw.rectangle([(0, 0), (1080, 200)], fill=(255, 255, 255, 200))
+        draw.text((80, 50), title, fill=(30, 30, 30), font=font_title)
+        draw.text((80, 130), subtitle, fill=(100, 100, 100), font=font_sub)
+        
+    elif template == "template2":
+        # Асимметрия
+        draw.rounded_rectangle([(40, 250), (500, 750)], radius=30, fill=(255, 255, 255, 230))
+        draw.text((80, 300), title, fill=(30, 30, 30), font=font_title)
+        draw.text((80, 400), subtitle, fill=(100, 100, 100), font=font_sub)
+
+    # 6. Сохраняем и отправляем
     img_byte_arr = io.BytesIO()
     bg.save(img_byte_arr, format='PNG')
     img_byte_arr.seek(0)
