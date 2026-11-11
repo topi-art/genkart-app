@@ -5,16 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ГенКарт</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- ПОДКЛЮЧАЕМ БИБЛИОТЕКУ ДЛЯ ВЫРЕЗАНИЯ ФОНА В БРАУЗЕРЕ -->
+    <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.1/dist/index.min.js"></script>
     <style>
-        /* НОВАЯ ЦВЕТОВАЯ СХЕМА (МАЛИНОВАЯ) */
-        :root { 
-            --bg: #121212; 
-            --card: #1e1e1e; 
-            --text: #ffffff; 
-            --muted: #888888; 
-            --accent: #ff2a75;  /* Малиновый акцент */
-            --accent-txt: #ffffff; /* Белый текст на кнопке */
-        }
+        :root { --bg: #121212; --card: #1e1e1e; --text: #ffffff; --muted: #888888; --accent: #ff2a75; --accent-txt: #ffffff; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
         body { background: var(--bg); color: var(--text); padding: 16px; padding-bottom: 80px; }
         
@@ -125,6 +119,7 @@
         let currentFile = null;
         let currentBg = 'bg1';
         let currentTemplate = 'template1';
+        let processedFile = null;
 
         function setBg(bg, btn) {
             currentBg = bg;
@@ -139,36 +134,53 @@
         }
 
         uploadZone.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', (e) => {
+        fileInput.addEventListener('change', async (e) => {
             currentFile = e.target.files[0];
             if (currentFile) {
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    previewImg.src = ev.target.result; previewImg.style.display = 'block';
-                    document.getElementById('uploadIcon').style.display = 'none';
-                    document.getElementById('uploadText').style.display = 'none';
+                previewImg.src = URL.createObjectURL(currentFile); 
+                previewImg.style.display = 'block';
+                document.getElementById('uploadIcon').style.display = 'none';
+                document.getElementById('uploadText').style.display = 'none';
+                
+                // ПОКАЗЫВАЕМ ЗАГРУЗКУ
+                previewImg.classList.add('is-loading');
+                statusText.style.display = 'block';
+                statusText.textContent = "Вырезаем фон... Это займет пару секунд.";
+                btnGenerate.disabled = true;
+
+                try {
+                    // ВЫРЕЗАЕМ ФОН ПРЯМО В БРАУЗЕРЕ
+                    const { removeBackground } = window.backgroundRemoval;
+                    const blob = await removeBackground(currentFile);
+                    processedFile = new File([blob], "product.png", { type: "image/png" });
+                    
+                    previewImg.src = URL.createObjectURL(processedFile);
+                    previewImg.classList.remove('is-loading');
+                    statusText.textContent = "Фон вырезан! Нажмите 'Сгенерировать'.";
                     btnGenerate.disabled = false;
-                };
-                reader.readAsDataURL(currentFile);
+                } catch (err) {
+                    console.error(err);
+                    statusText.textContent = "Не удалось вырезать фон. Будет использовано оригинальное фото.";
+                    processedFile = currentFile;
+                    previewImg.classList.remove('is-loading');
+                    btnGenerate.disabled = false;
+                }
             }
         });
 
         btnGenerate.addEventListener('click', async () => {
-            if (!currentFile) return;
+            if (!processedFile && !currentFile) return;
             
-            previewImg.classList.add('is-loading');
             btnGenerate.disabled = true; 
             btnGenerate.innerHTML = "Генерация... ⏳";
-            statusText.style.display = 'block';
-            statusText.textContent = "Пожалуйста, подождите...";
+            statusText.textContent = "Создаем карточку...";
 
             const formData = new FormData();
-            formData.append('file', currentFile);
+            formData.append('file', processedFile || currentFile);
             formData.append('title', document.getElementById('titleInput').value || "Название");
             formData.append('subtitle', document.getElementById('subtitleInput').value || "Описание");
             formData.append('background', currentBg);
             formData.append('template', currentTemplate);
-            
             formData.append('font_style', document.getElementById('fontSelect').value);
             formData.append('font_size', document.getElementById('sizeSelect').value);
             
@@ -207,8 +219,6 @@
             } catch (error) {
                 tg.showAlert("Ошибка сети. Попробуйте еще раз.");
                 btnGenerate.disabled = false; btnGenerate.innerHTML = "Повторить";
-            } finally {
-                previewImg.classList.remove('is-loading');
             }
         });
 
