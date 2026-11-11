@@ -32,7 +32,7 @@
         .select-group { display: flex; gap: 10px; margin-bottom: 15px; }
         .select-box { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #121212; color: white; font-size: 14px; }
 
-        .bg-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; max-height: 150px; overflow-y: auto; }
+        .bg-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; max-height: 200px; overflow-y: auto; }
         .bg-btn, .tpl-btn, .size-btn { padding: 10px; background: #121212; color: var(--muted); border: 1px solid #333; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 12px; text-align: center; }
         .bg-btn.active, .tpl-btn.active, .size-btn.active { background: #2a2a2a; color: var(--accent); border-color: var(--accent); }
 
@@ -89,6 +89,19 @@
             <button class="size-btn" onclick="setSize('small', this)">Маленький</button>
             <button class="size-btn active" onclick="setSize('medium', this)">Средний</button>
             <button class="size-btn" onclick="setSize('large', this)">Большой</button>
+        </div>
+
+        <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">Шрифт и размер:</div>
+        <div class="select-group">
+            <select id="fontSelect" class="select-box">
+                <option value="sans">Без засечек</option>
+                <option value="serif">С засечками</option>
+            </select>
+            <select id="sizeSelect" class="select-box">
+                <option value="small">Мелкий</option>
+                <option value="normal" selected>Средний</option>
+                <option value="large">Крупный</option>
+            </select>
         </div>
 
         <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">Фон (подиум):</div>
@@ -183,6 +196,9 @@
             formData.append('template', currentTemplate);
             formData.append('size', currentSize);
             formData.append('is_video', isVideo ? 'true' : 'false');
+            
+            formData.append('font_style', document.getElementById('fontSelect').value);
+            formData.append('font_size', document.getElementById('sizeSelect').value);
             
             if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
                 formData.append('chat_id', tg.initDataUnsafe.user.id);
