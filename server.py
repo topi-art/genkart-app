@@ -41,6 +41,8 @@ async def generate_card(
     background: str = Form("bg1"),
     template: str = Form("template1"),
     size: str = Form("medium"),
+    font_style: str = Form("sans"),
+    font_size: str = Form("normal"),
     is_video: bool = Form(False),
     chat_id: str = Form(None)
 ):
@@ -97,7 +99,7 @@ async def generate_card(
     else:
         product_img.thumbnail((500, 500))
 
-    # 5. ЛОГИКА РАЗМЕЩЕНИЯ (Текст и товар в разных зонах)
+    # 5. ЛОГИКА РАЗМЕЩЕНИЯ
     if template == "template1": # Сверху
         x = (1080 - product_img.width) // 2
         y = 400
