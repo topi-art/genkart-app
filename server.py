@@ -4,7 +4,6 @@ from fastapi.responses import StreamingResponse
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import io
 import requests
-from rembg import remove
 
 app = FastAPI()
 
@@ -17,6 +16,7 @@ app.add_middleware(
 )
 
 BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
+POOF_API_KEY = "pk_99ed372f4d6bfc5f2930fb8776a57493"
 
 BACKGROUNDS = {
     "bg1": {"file": "Screenshot_20261111_135917_Pinterest.jpg", "x": 350, "y": 450},
@@ -42,15 +42,26 @@ async def generate_card(
 ):
     image_data = await file.read()
     
-    # 1. УДАЛЯЕМ ФОН ПРЯМО НА СЕРВЕРЕ (облегченная модель)
+    # 1. УДАЛЯЕМ ФОН ЧЕРЕЗ POOF
+    product_img = None
     try:
-        product_img = remove(image_data)
-        product_img = Image.open(io.BytesIO(product_img)).convert("RGBA")
+        response = requests.post(
+            'https://api.poof.bg/v1/removebg',
+            files={'image_file': ('image.jpg', image_data, 'image/jpeg')},
+            headers={'x-api-key': POOF_API_KEY},
+            timeout=25
+        )
+        if response.status_code == 200:
+            product_img = Image.open(io.BytesIO(response.content)).convert("RGBA")
+        else:
+            print(f"ОШИБКА POOF: {response.text}")
     except Exception as e:
-        print(f"ОШИБКА REMBG: {e}")
+        print(f"ОШИБКА POOF: {e}")
+
+    if not product_img:
         product_img = Image.open(io.BytesIO(image_data)).convert("RGBA")
 
-    # 2. Загружаем фон и координаты
+    # 2. Загружаем фон
     bg_info = BACKGROUNDS.get(background, BACKGROUNDS["bg1"])
     try:
         bg = Image.open(bg_info["file"]).convert("RGBA")
@@ -74,22 +85,20 @@ async def generate_card(
 
     draw = ImageDraw.Draw(bg)
 
-    # 4. Товар и его позиция
+    # 4. Товар и позиция
     product_img.thumbnail((500, 500))
     x = bg_info["x"]
     y = bg_info["y"]
 
-    # 5. Логика шаблонов текста
+    # 5. Шаблоны
     if template == "template1":
         draw.rectangle([(0, 0), (1080, 200)], fill=(255, 255, 255, 200))
         draw.text((80, 50), title, fill=(30, 30, 30), font=font_title)
         draw.text((80, 130), subtitle, fill=(100, 100, 100), font=font_sub)
-
     elif template == "template2":
         draw.rounded_rectangle([(40, 250), (500, 750)], radius=30, fill=(255, 255, 255, 230))
         draw.text((80, 300), title, fill=(30, 30, 30), font=font_title)
         draw.text((80, 400), subtitle, fill=(100, 100, 100), font=font_sub)
-
     elif template == "template3":
         draw.text((60, 150), title, fill=(30, 30, 30), font=font_title)
         draw.text((60, 250), subtitle, fill=(100, 100, 100), font=font_sub)
@@ -104,7 +113,6 @@ async def generate_card(
     shadow_bbox = (x + 20, y + product_img.height - 50, x + product_img.width - 20, y + product_img.height + 50)
     shadow_draw.ellipse(shadow_bbox, fill=(0, 0, 0, 120))
     shadow = shadow.filter(ImageFilter.GaussianBlur(20))
-    
     bg.paste(shadow, (0, 0), shadow)
     bg.paste(product_img, (x, y), product_img)
 
