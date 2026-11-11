@@ -41,20 +41,27 @@ async def generate_card(
 ):
     image_data = await file.read()
     
-    # 1. Удаляем фон у фото (через бесплатный сервис)
+    # 1. УДАЛЯЕМ ФОН ЧЕРЕЗ БЕСПЛАТНЫЙ API (remove.bg / без ключа)
+    # Используем публичный тестовый эндпоинт, который вырезает объекты
+    product_img = None
     try:
+        # Отправляем на бесплатный сервис удаления фона
         response = requests.post(
-            'https://api.nobg.io/removebg',
+            'https://api.remove.bg/v1.0/removebg',
             files={'image_file': image_data},
             data={'size': 'auto'},
-            timeout=10
+            timeout=15
         )
-        if response.status_code == 200:
+        # Если сервис вернул картинку (а не ошибку), берем её
+        if response.status_code == 200 and response.headers.get('content-type', '').startswith('image'):
             product_img = Image.open(io.BytesIO(response.content)).convert("RGBA")
         else:
-            raise Exception("API не сработал")
-    except:
-        # Если не сработало, берем оригинал
+            print(f"ОШИБКА REMOVE.BG: {response.text}")
+    except Exception as e:
+        print(f"ОШИБКА СЕТИ REMOVE.BG: {e}")
+
+    # Если вырезать не удалось, берем оригинал (но это плохой сценарий)
+    if not product_img:
         product_img = Image.open(io.BytesIO(image_data)).convert("RGBA")
 
     # 2. Загружаем фон
@@ -99,13 +106,11 @@ async def generate_card(
     draw = ImageDraw.Draw(bg)
     
     if template == "template1":
-        # Классика
         draw.rectangle([(0, 0), (1080, 200)], fill=(255, 255, 255, 200))
         draw.text((80, 50), title, fill=(30, 30, 30), font=font_title)
         draw.text((80, 130), subtitle, fill=(100, 100, 100), font=font_sub)
         
     elif template == "template2":
-        # Асимметрия
         draw.rounded_rectangle([(40, 250), (500, 750)], radius=30, fill=(255, 255, 255, 230))
         draw.text((80, 300), title, fill=(30, 30, 30), font=font_title)
         draw.text((80, 400), subtitle, fill=(100, 100, 100), font=font_sub)
