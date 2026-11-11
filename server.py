@@ -15,7 +15,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ВАШ ТОКЕН (вставлен ровно как вы написали)
 BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
 
 @app.get("/")
@@ -28,6 +27,8 @@ async def generate_card(
     title: str = Form("Название"), 
     subtitle: str = Form("Описание"),
     template: str = Form("template1"),
+    font_style: str = Form("sans"),
+    font_size: str = Form("normal"),
     chat_id: str = Form(None)
 ):
     image_data = await file.read()
@@ -36,12 +37,29 @@ async def generate_card(
     bg = Image.new("RGB", (1080, 1080), (245, 245, 247))
     draw = ImageDraw.Draw(bg)
     
+    # Выбор шрифта
+    font_paths = {
+        "sans": "DejaVuSans-Bold.ttf",
+        "serif": "DejaVuSerif-Bold.ttf",
+        "mono": "DejaVuSansMono-Bold.ttf"
+    }
+    font_path = font_paths.get(font_style, "DejaVuSans-Bold.ttf")
+    
+    # Выбор размера
+    sizes = {"small": 40, "normal": 60, "large": 80}
+    title_size = sizes.get(font_size, 60)
+    sub_size = title_size - 20 if title_size > 40 else 30
+
     try:
-        font_title = ImageFont.truetype("arial.ttf", 60)
-        font_sub = ImageFont.truetype("arial.ttf", 40)
+        font_title = ImageFont.truetype(font_path, title_size)
+        font_sub = ImageFont.truetype(font_path, sub_size)
     except:
-        font_title = ImageFont.load_default()
-        font_sub = ImageFont.load_default()
+        try:
+            font_title = ImageFont.truetype(f"/usr/share/fonts/truetype/dejavu/{font_path}", title_size)
+            font_sub = ImageFont.truetype(f"/usr/share/fonts/truetype/dejavu/{font_path}", sub_size)
+        except:
+            font_title = ImageFont.load_default()
+            font_sub = ImageFont.load_default()
 
     if template == "template1":
         img.thumbnail((700, 700))
@@ -73,19 +91,14 @@ async def generate_card(
     bg.save(img_byte_arr, format='PNG')
     img_byte_arr.seek(0)
     
-    # Отправка в чат
     if chat_id:
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
         files = {'document': ('card.png', img_byte_arr.getvalue(), 'image/png')}
         data = {'chat_id': chat_id, 'caption': 'Ваша карточка готова!'}
         try:
-            response = requests.post(url, files=files, data=data)
-            if response.status_code != 200:
-                print(f"ОШИБКА ОТПРАВКИ: {response.text}")
-            else:
-                print("УСПЕХ: Картинка отправлена в чат!")
+            requests.post(url, files=files, data=data)
         except Exception as e:
-            print(f"ОШИБКА СЕТИ: {e}")
+            print(f"ОШИБКА: {e}")
         img_byte_arr.seek(0)
     
     return StreamingResponse(img_byte_arr, media_type="image/png")
