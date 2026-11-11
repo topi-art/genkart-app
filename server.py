@@ -17,6 +17,14 @@ app.add_middleware(
 
 BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
 
+# СЛОВАРЬ ФОНОВ (ключ = имя, значение = имя файла на GitHub)
+BACKGROUNDS = {
+    "bg1": "Screenshot_20261111_135917_Pinterest.jpg",
+    "bg2": "Screenshot_20261111_140017_Pinterest.jpg",
+    "bg3": "Screenshot_20261111_140026_Pinterest.jpg",
+    "bg4": "Screenshot_20261111_140051_Pinterest.jpg"
+}
+
 @app.get("/")
 def read_root():
     return {"status": "ok", "message": "Бэкенд работает!"}
@@ -26,7 +34,7 @@ async def generate_card(
     file: UploadFile = File(...), 
     title: str = Form("Название"), 
     subtitle: str = Form("Описание"),
-    template: str = Form("template1"),
+    background: str = Form("bg1"), # Выбор фона
     font_style: str = Form("sans"),
     font_size: str = Form("normal"),
     chat_id: str = Form(None)
@@ -34,59 +42,44 @@ async def generate_card(
     image_data = await file.read()
     img = Image.open(io.BytesIO(image_data)).convert("RGBA")
     
-    bg = Image.new("RGB", (1080, 1080), (245, 245, 247))
+    # 1. Загружаем выбранный фон
+    bg_filename = BACKGROUNDS.get(background, "Screenshot_20261111_135917_Pinterest.jpg")
+    try:
+        bg = Image.open(bg_filename).convert("RGBA")
+        bg = bg.resize((1080, 1080))
+    except:
+        bg = Image.new("RGB", (1080, 1080), (245, 245, 247))
+
     draw = ImageDraw.Draw(bg)
     
-    # Выбор шрифта
-    font_paths = {
-        "sans": "DejaVuSans-Bold.ttf",
-        "serif": "DejaVuSerif-Bold.ttf",
-        "mono": "DejaVuSansMono-Bold.ttf"
-    }
+    # 2. Настройка шрифтов
+    font_paths = {"sans": "DejaVuSans-Bold.ttf", "serif": "DejaVuSerif-Bold.ttf"}
     font_path = font_paths.get(font_style, "DejaVuSans-Bold.ttf")
-    
-    # Выбор размера
     sizes = {"small": 40, "normal": 60, "large": 80}
     title_size = sizes.get(font_size, 60)
-    sub_size = title_size - 20 if title_size > 40 else 30
-
+    
     try:
         font_title = ImageFont.truetype(font_path, title_size)
-        font_sub = ImageFont.truetype(font_path, sub_size)
     except:
-        try:
-            font_title = ImageFont.truetype(f"/usr/share/fonts/truetype/dejavu/{font_path}", title_size)
-            font_sub = ImageFont.truetype(f"/usr/share/fonts/truetype/dejavu/{font_path}", sub_size)
-        except:
-            font_title = ImageFont.load_default()
-            font_sub = ImageFont.load_default()
+        font_title = ImageFont.load_default()
 
-    if template == "template1":
-        img.thumbnail((700, 700))
-        x = (1080 - img.width) // 2
-        y = (1080 - img.height) // 2 + 50
-        draw.rectangle([(0, 0), (1080, 200)], fill=(255, 255, 255))
-        draw.text((80, 50), title, fill=(30, 30, 30), font=font_title)
-        draw.text((80, 130), subtitle, fill=(100, 100, 100), font=font_sub)
-        shadow = Image.new("RGBA", (img.width + 40, img.height + 40), (0, 0, 0, 0))
-        ImageDraw.Draw(shadow).ellipse((20, 20, img.width + 20, img.height + 20), fill=(0, 0, 0, 80))
-        shadow = shadow.filter(ImageFilter.GaussianBlur(15))
-        bg.paste(shadow, (x - 20, y + 10), shadow)
-        bg.paste(img, (x, y), img)
+    # 3. Вставляем товар (с маской-кругом, чтобы смотрелось как на подиуме)
+    img.thumbnail((700, 700))
+    mask = Image.new("L", img.size, 0)
+    draw_mask = ImageDraw.Draw(mask)
+    draw_mask.ellipse((0, 0, img.width, img.height), fill=255)
+    
+    x = (1080 - img.width) // 2
+    y = (1080 - img.height) // 2 + 50
+    
+    bg.paste(img, (x, y), mask)
+    
+    # 4. Добавляем текст
+    # Для контраста на разных фонах используем белый или черный цвет (пока белый)
+    draw.text((80, 80), title, fill=(255, 255, 255), font=font_title)
+    draw.text((80, 160), subtitle, fill=(200, 200, 200), font=font_title)
 
-    elif template == "template2":
-        img.thumbnail((600, 600))
-        x = 1080 - img.width - 50
-        y = (1080 - img.height) // 2
-        draw.rounded_rectangle([(40, 250), (500, 750)], radius=30, fill=(255, 255, 255, 230))
-        draw.text((80, 300), title, fill=(30, 30, 30), font=font_title)
-        draw.text((80, 400), subtitle, fill=(100, 100, 100), font=font_sub)
-        shadow = Image.new("RGBA", (img.width + 40, img.height + 40), (0, 0, 0, 0))
-        ImageDraw.Draw(shadow).ellipse((20, 20, img.width + 20, img.height + 20), fill=(0, 0, 0, 80))
-        shadow = shadow.filter(ImageFilter.GaussianBlur(15))
-        bg.paste(shadow, (x - 20, y + 10), shadow)
-        bg.paste(img, (x, y), img)
-
+    # 5. Сохраняем и отправляем
     img_byte_arr = io.BytesIO()
     bg.save(img_byte_arr, format='PNG')
     img_byte_arr.seek(0)
