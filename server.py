@@ -16,7 +16,7 @@ app.add_middleware(
 )
 
 # ВАШ ТОКЕН
-BOT_TOKEN = "9195903180:AAF_-oVZiNNNa8P0vEYutD16S1vTv8nHffk" 
+BOT_TOKEN ="9195903180: AAF -oVZiNNNa8POvEYut D16SlvTv8nHffk"
 
 # ВАШ ID ДЛЯ ТЕСТА
 TEST_CHAT_ID = "1124115675"
