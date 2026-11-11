@@ -4,6 +4,7 @@ from fastapi.responses import StreamingResponse
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import io
 import requests
+from rembg import remove, new_session
 
 app = FastAPI()
 
@@ -16,6 +17,9 @@ app.add_middleware(
 )
 
 BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
+
+# Создаем легкую сессию (модель u2netp весит мало)
+session = new_session("u2netp")
 
 BACKGROUNDS = {
     "bg1": {"file": "Screenshot_20261111_135917_Pinterest.jpg", "x": 350, "y": 450},
@@ -41,10 +45,15 @@ async def generate_card(
 ):
     image_data = await file.read()
     
-    # Берем уже вырезанное фото
-    product_img = Image.open(io.BytesIO(image_data)).convert("RGBA")
+    # 1. УДАЛЯЕМ ФОН НА СЕРВЕРЕ (легкая модель)
+    try:
+        product_img = remove(image_data, session=session)
+        product_img = Image.open(io.BytesIO(product_img)).convert("RGBA")
+    except Exception as e:
+        print(f"ОШИБКА REMBG: {e}")
+        product_img = Image.open(io.BytesIO(image_data)).convert("RGBA")
 
-    # Загружаем фон
+    # 2. Фон
     bg_info = BACKGROUNDS.get(background, BACKGROUNDS["bg1"])
     try:
         bg = Image.open(bg_info["file"]).convert("RGBA")
@@ -52,7 +61,7 @@ async def generate_card(
     except:
         bg = Image.new("RGB", (1080, 1080), (245, 245, 247))
 
-    # Шрифты
+    # 3. Шрифты
     font_paths = {"sans": "DejaVuSans-Bold.ttf", "serif": "DejaVuSerif-Bold.ttf"}
     font_path = font_paths.get(font_style, "DejaVuSans-Bold.ttf")
     sizes = {"small": 40, "normal": 60, "large": 80}
@@ -68,12 +77,12 @@ async def generate_card(
 
     draw = ImageDraw.Draw(bg)
 
-    # Товар и позиция
+    # 4. Товар
     product_img.thumbnail((500, 500))
     x = bg_info["x"]
     y = bg_info["y"]
 
-    # Шаблоны
+    # 5. Шаблоны
     if template == "template1":
         draw.rectangle([(0, 0), (1080, 200)], fill=(255, 255, 255, 200))
         draw.text((80, 50), title, fill=(30, 30, 30), font=font_title)
@@ -90,7 +99,7 @@ async def generate_card(
             draw.ellipse([(60, cy), (120, cy + 60)], fill=(230, 230, 230))
             draw.text((150, cy + 10), "Преимущество", fill=(80, 80, 80), font=font_sub)
 
-    # Тень и товар
+    # 6. Тень и товар
     shadow = Image.new("RGBA", bg.size, (0, 0, 0, 0))
     shadow_draw = ImageDraw.Draw(shadow)
     shadow_bbox = (x + 20, y + product_img.height - 50, x + product_img.width - 20, y + product_img.height + 50)
@@ -99,7 +108,7 @@ async def generate_card(
     bg.paste(shadow, (0, 0), shadow)
     bg.paste(product_img, (x, y), product_img)
 
-    # Отправка
+    # 7. Отправка
     img_byte_arr = io.BytesIO()
     bg.save(img_byte_arr, format='PNG')
     img_byte_arr.seek(0)
