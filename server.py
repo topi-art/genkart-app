@@ -4,7 +4,6 @@ from fastapi.responses import StreamingResponse
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import io
 import requests
-import base64
 
 app = FastAPI()
 
@@ -42,30 +41,10 @@ async def generate_card(
 ):
     image_data = await file.read()
     
-    # 1. УДАЛЯЕМ ФОН ЧЕРЕЗ БЕСПЛАТНЫЙ PUBLIC API HUGGING FACE (U2-Net)
-    product_img = None
-    try:
-        # Отправляем на публичный сервис
-        response = requests.post(
-            'https://u2net-remove-background.hf.space/api/predict',
-            files={'image': ('image.jpg', image_data, 'image/jpeg')},
-            timeout=30
-        )
-        if response.status_code == 200:
-            data = response.json()
-            if 'data' in data and len(data['data']) > 0:
-                img_data = base64.b64decode(data['data'][0].split(',')[1])
-                product_img = Image.open(io.BytesIO(img_data)).convert("RGBA")
-        else:
-            print(f"ОШИБКА HF: {response.text}")
-    except Exception as e:
-        print(f"ОШИБКА HF: {e}")
+    # Берем уже вырезанное фото
+    product_img = Image.open(io.BytesIO(image_data)).convert("RGBA")
 
-    # Если не сработало, берем оригинал
-    if not product_img:
-        product_img = Image.open(io.BytesIO(image_data)).convert("RGBA")
-
-    # 2. Загружаем фон
+    # Загружаем фон
     bg_info = BACKGROUNDS.get(background, BACKGROUNDS["bg1"])
     try:
         bg = Image.open(bg_info["file"]).convert("RGBA")
@@ -73,7 +52,7 @@ async def generate_card(
     except:
         bg = Image.new("RGB", (1080, 1080), (245, 245, 247))
 
-    # 3. Шрифты
+    # Шрифты
     font_paths = {"sans": "DejaVuSans-Bold.ttf", "serif": "DejaVuSerif-Bold.ttf"}
     font_path = font_paths.get(font_style, "DejaVuSans-Bold.ttf")
     sizes = {"small": 40, "normal": 60, "large": 80}
@@ -89,12 +68,12 @@ async def generate_card(
 
     draw = ImageDraw.Draw(bg)
 
-    # 4. Товар и позиция
+    # Товар и позиция
     product_img.thumbnail((500, 500))
     x = bg_info["x"]
     y = bg_info["y"]
 
-    # 5. Шаблоны
+    # Шаблоны
     if template == "template1":
         draw.rectangle([(0, 0), (1080, 200)], fill=(255, 255, 255, 200))
         draw.text((80, 50), title, fill=(30, 30, 30), font=font_title)
@@ -111,7 +90,7 @@ async def generate_card(
             draw.ellipse([(60, cy), (120, cy + 60)], fill=(230, 230, 230))
             draw.text((150, cy + 10), "Преимущество", fill=(80, 80, 80), font=font_sub)
 
-    # 6. Тень и товар
+    # Тень и товар
     shadow = Image.new("RGBA", bg.size, (0, 0, 0, 0))
     shadow_draw = ImageDraw.Draw(shadow)
     shadow_bbox = (x + 20, y + product_img.height - 50, x + product_img.width - 20, y + product_img.height + 50)
@@ -120,7 +99,7 @@ async def generate_card(
     bg.paste(shadow, (0, 0), shadow)
     bg.paste(product_img, (x, y), product_img)
 
-    # 7. Отправка
+    # Отправка
     img_byte_arr = io.BytesIO()
     bg.save(img_byte_arr, format='PNG')
     img_byte_arr.seek(0)
