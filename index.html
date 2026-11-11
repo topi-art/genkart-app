@@ -32,15 +32,39 @@
         .select-group { display: flex; gap: 10px; margin-bottom: 15px; }
         .select-box { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #121212; color: white; font-size: 14px; }
 
-        .bg-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; max-height: 200px; overflow-y: auto; }
-        .bg-btn, .tpl-btn, .size-btn { padding: 10px; background: #121212; color: var(--muted); border: 1px solid #333; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 12px; text-align: center; }
-        .bg-btn.active, .tpl-btn.active, .size-btn.active { background: #2a2a2a; color: var(--accent); border-color: var(--accent); }
-
-        .templates { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
-        .tpl-btn { flex: 1; min-width: 45%; }
+        /* ГОРИЗОНТАЛЬНАЯ ПРОКРУТКА ДЛЯ ФОНОВ */
+        .bg-scroll {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            scrollbar-width: none; /* Для Firefox */
+        }
+        .bg-scroll::-webkit-scrollbar { display: none; } /* Для Chrome/Safari */
         
-        .sizes { display: flex; gap: 10px; margin-bottom: 15px; }
-        .size-btn { flex: 1; }
+        .bg-btn, .tpl-btn, .size-btn, .rot-btn { 
+            padding: 10px; 
+            background: #121212; 
+            color: var(--muted); 
+            border: 1px solid #333; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: 600; 
+            font-size: 12px; 
+            text-align: center; 
+            white-space: nowrap; /* Текст в одну строку */
+        }
+        .bg-btn { min-width: 100px; } /* Ширина кнопок фонов */
+        
+        .bg-btn.active, .tpl-btn.active, .size-btn.active, .rot-btn.active { 
+            background: #2a2a2a; 
+            color: var(--accent); 
+            border-color: var(--accent); 
+        }
+
+        .templates, .sizes, .rotations { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .tpl-btn, .size-btn, .rot-btn { flex: 1; min-width: 30%; }
 
         .btn-generate { background: var(--accent); color: var(--accent-txt); border: none; width: 100%; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 10px; }
         .btn-video { background: #333; color: white; border: none; width: 100%; padding: 14px; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; }
@@ -91,6 +115,26 @@
             <button class="size-btn" onclick="setSize('large', this)">Большой</button>
         </div>
 
+        <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">Поворот товара:</div>
+        <div class="rotations">
+            <button class="rot-btn active" onclick="setRotation('none', this)">Ровно</button>
+            <button class="rot-btn" onclick="setRotation('left', this)">Влево</button>
+            <button class="rot-btn" onclick="setRotation('right', this)">Вправо</button>
+        </div>
+
+        <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">Фон (подиум):</div>
+        <!-- ГОРИЗОНТАЛЬНАЯ ПРОКРУТКА -->
+        <div class="bg-scroll">
+            <button class="bg-btn active" onclick="setBg('bg1', this)">Ткань</button>
+            <button class="bg-btn" onclick="setBg('bg2', this)">Дерево</button>
+            <button class="bg-btn" onclick="setBg('bg3', this)">Темный</button>
+            <button class="bg-btn" onclick="setBg('bg4', this)">Облака</button>
+            <button class="bg-btn" onclick="setBg('bg5', this)">Шелк</button>
+            <button class="bg-btn" onclick="setBg('bg6', this)">Лед</button>
+            <button class="bg-btn" onclick="setBg('bg7', this)">Мрамор</button>
+            <button class="bg-btn" onclick="setBg('bg8', this)">Стекло</button>
+        </div>
+
         <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">Шрифт и размер:</div>
         <div class="select-group">
             <select id="fontSelect" class="select-box">
@@ -102,18 +146,6 @@
                 <option value="normal" selected>Средний</option>
                 <option value="large">Крупный</option>
             </select>
-        </div>
-
-        <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">Фон (подиум):</div>
-        <div class="bg-options">
-            <button class="bg-btn active" onclick="setBg('bg1', this)">Ткань</button>
-            <button class="bg-btn" onclick="setBg('bg2', this)">Дерево</button>
-            <button class="bg-btn" onclick="setBg('bg3', this)">Темный</button>
-            <button class="bg-btn" onclick="setBg('bg4', this)">Облака</button>
-            <button class="bg-btn" onclick="setBg('bg5', this)">Шелк</button>
-            <button class="bg-btn" onclick="setBg('bg6', this)">Лед</button>
-            <button class="bg-btn" onclick="setBg('bg7', this)">Мрамор</button>
-            <button class="bg-btn" onclick="setBg('bg8', this)">Стекло</button>
         </div>
 
         <button class="btn-generate" id="btnGenerate" disabled>
@@ -143,6 +175,7 @@
         let currentBg = 'bg1';
         let currentTemplate = 'template1';
         let currentSize = 'medium';
+        let currentRotation = 'none';
 
         function setBg(bg, btn) {
             currentBg = bg;
@@ -159,6 +192,12 @@
         function setSize(size, btn) {
             currentSize = size;
             document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        function setRotation(rot, btn) {
+            currentRotation = rot;
+            document.querySelectorAll('.rot-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
         }
 
@@ -195,6 +234,7 @@
             formData.append('background', currentBg);
             formData.append('template', currentTemplate);
             formData.append('size', currentSize);
+            formData.append('rotation', currentRotation);
             formData.append('is_video', isVideo ? 'true' : 'false');
             
             formData.append('font_style', document.getElementById('fontSelect').value);
