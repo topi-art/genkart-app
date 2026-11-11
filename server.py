@@ -15,11 +15,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ВАШ АКТУАЛЬНЫЙ ТОКЕН
+# ВАШ ТОКЕН
 BOT_TOKEN = "9195903180:AAF_-oVZiNNNa8P0vEYutD16S1vTv8nHffk" 
+
+# ВАШ ID ДЛЯ ТЕСТА
+TEST_CHAT_ID = "1124115675"
 
 @app.get("/")
 def read_root():
+    # При открытии главной страницы сервер попробует отправить вам сообщение
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    data = {'chat_id': TEST_CHAT_ID, 'text': '✅ Тест связи: сервер успешно отправил это сообщение!'}
+    try:
+        response = requests.post(url, data=data)
+        if response.status_code != 200:
+            print(f"ОШИБКА ТЕСТА: {response.text}")
+        else:
+            print("ТЕСТ ПРОЙДЕН УСПЕШНО")
+    except Exception as e:
+        print(f"ОШИБКА СЕТИ: {e}")
+        
     return {"status": "ok", "message": "Бэкенд работает!"}
 
 @app.post("/generate-card")
@@ -47,11 +62,9 @@ async def generate_card(
         img.thumbnail((700, 700))
         x = (1080 - img.width) // 2
         y = (1080 - img.height) // 2 + 50
-        
         draw.rectangle([(0, 0), (1080, 200)], fill=(255, 255, 255))
         draw.text((80, 50), title, fill=(30, 30, 30), font=font_title)
         draw.text((80, 130), subtitle, fill=(100, 100, 100), font=font_sub)
-        
         shadow = Image.new("RGBA", (img.width + 40, img.height + 40), (0, 0, 0, 0))
         ImageDraw.Draw(shadow).ellipse((20, 20, img.width + 20, img.height + 20), fill=(0, 0, 0, 80))
         shadow = shadow.filter(ImageFilter.GaussianBlur(15))
@@ -62,11 +75,9 @@ async def generate_card(
         img.thumbnail((600, 600))
         x = 1080 - img.width - 50
         y = (1080 - img.height) // 2
-        
         draw.rounded_rectangle([(40, 250), (500, 750)], radius=30, fill=(255, 255, 255, 230))
         draw.text((80, 300), title, fill=(30, 30, 30), font=font_title)
         draw.text((80, 400), subtitle, fill=(100, 100, 100), font=font_sub)
-        
         shadow = Image.new("RGBA", (img.width + 40, img.height + 40), (0, 0, 0, 0))
         ImageDraw.Draw(shadow).ellipse((20, 20, img.width + 20, img.height + 20), fill=(0, 0, 0, 80))
         shadow = shadow.filter(ImageFilter.GaussianBlur(15))
@@ -77,6 +88,7 @@ async def generate_card(
     bg.save(img_byte_arr, format='PNG')
     img_byte_arr.seek(0)
     
+    # Отправка картинки (если передан chat_id)
     if chat_id:
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
         files = {'photo': ('card.png', img_byte_arr.getvalue(), 'image/png')}
@@ -84,7 +96,7 @@ async def generate_card(
         try:
             response = requests.post(url, files=files, data=data)
             if response.status_code != 200:
-                print(f"ОШИБКА TELEGRAM: {response.text}")
+                print(f"ОШИБКА КАРТИНКИ: {response.text}")
         except Exception as e:
             print(f"ОШИБКА СЕТИ: {e}")
         img_byte_arr.seek(0)
