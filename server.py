@@ -4,6 +4,7 @@ from fastapi.responses import StreamingResponse
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import io
 import requests
+import numpy as np
 
 app = FastAPI()
 
@@ -17,15 +18,16 @@ app.add_middleware(
 
 BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
 
+# ПРОВЕРЕННЫЕ ИМЕНА ФОНОВ
 BACKGROUNDS = {
-    "bg1": "Screenshot_20261111_135917_Pinterest.jpg",
-    "bg2": "Screenshot_20261111_140017_Pinterest.jpg",
-    "bg3": "Screenshot_20261111_140026_Pinterest.jpg",
-    "bg4": "Screenshot_20261111_140051_Pinterest.jpg",
-    "bg5": "Screenshot_20261111_185352_Pinterest.jpg",
-    "bg6": "Screenshot_20261111_185424_Pinterest.jpg",
-    "bg7": "Screenshot_20261111_185521_Pinterest.jpg",
-    "bg8": "Screenshot_20261111_190043_Pinterest.jpg"
+    "bg1": "Screenshot_20261111_135917_Pinterest.jpg", # Ткань
+    "bg2": "Screenshot_20261111_140017_Pinterest.jpg", # Дерево
+    "bg3": "Screenshot_20261111_140026_Pinterest.jpg", # Темный
+    "bg4": "Screenshot_20261111_140051_Pinterest.jpg", # Облака
+    "bg5": "Screenshot_20261111_185352_Pinterest.jpg", # Шелк
+    "bg6": "Screenshot_20261111_185424_Pinterest.jpg", # Лед
+    "bg7": "Screenshot_20261111_185521_Pinterest.jpg", # Мрамор
+    "bg8": "Screenshot_20261111_190043_Pinterest.jpg"  # Стекло
 }
 
 @app.get("/")
@@ -41,6 +43,7 @@ async def generate_card(
     background: str = Form("bg1"),
     template: str = Form("template1"),
     size: str = Form("medium"),
+    rotation: str = Form("none"),
     font_style: str = Form("sans"),
     font_size: str = Form("normal"),
     is_video: bool = Form(False),
@@ -64,7 +67,13 @@ async def generate_card(
     if not product_img:
         product_img = Image.open(io.BytesIO(image_data)).convert("RGBA")
 
-    # 2. Фон
+    # 2. ПОВОРОТ ТОВАРА (Статичный)
+    if rotation == "left":
+        product_img = product_img.rotate(15, expand=True, resample=Image.BICUBIC)
+    elif rotation == "right":
+        product_img = product_img.rotate(-15, expand=True, resample=Image.BICUBIC)
+
+    # 3. Фон
     bg_filename = BACKGROUNDS.get(background, BACKGROUNDS["bg1"])
     try:
         bg = Image.open(bg_filename).convert("RGBA")
@@ -72,7 +81,7 @@ async def generate_card(
     except:
         bg = Image.new("RGB", (1080, 1080), (245, 245, 247))
 
-    # 3. Шрифты
+    # 4. Шрифты
     font_paths = {"sans": "DejaVuSans-Bold.ttf", "serif": "DejaVuSerif-Bold.ttf"}
     font_path = font_paths.get(font_style, "DejaVuSans-Bold.ttf")
     sizes = {"small": 40, "normal": 60, "large": 80}
@@ -91,17 +100,17 @@ async def generate_card(
 
     draw = ImageDraw.Draw(bg)
 
-    # 4. РАЗМЕР ТОВАРА
+    # 5. РАЗМЕР ТОВАРА
     if size == "small":
-        product_img.thumbnail((300, 300))
-    elif size == "large":
-        product_img.thumbnail((800, 800))
-    else:
         product_img.thumbnail((500, 500))
+    elif size == "large":
+        product_img.thumbnail((900, 900))
+    else:
+        product_img.thumbnail((700, 700))
 
-    # 5. ЛОГИКА РАЗМЕЩЕНИЯ
+    # 6. ЛОГИКА РАЗМЕЩЕНИЯ
     if template == "template1": # Сверху
-        x = (1080 - product_img.width) // 2
+        x = (1080 - product_img.width) // 2 
         y = 400
         title_bbox = draw.textbbox((0, 0), title, font=font_title)
         draw.text(((1080 - (title_bbox[2] - title_bbox[0])) // 2, 80), title, fill=(30, 30, 30), font=font_title)
@@ -131,7 +140,7 @@ async def generate_card(
                 cy = 350 + i * 80
                 draw.text((80, cy), line, fill=(255, 255, 255), font=font_features)
 
-    # 6. ТЕНЬ И ТОВАР
+    # 7. ТЕНЬ И ТОВАР (Для статичной карточки)
     if not is_video:
         if template in ["template1", "template2", "template3"]:
             shadow = Image.new("RGBA", bg.size, (0, 0, 0, 0))
@@ -148,12 +157,15 @@ async def generate_card(
         media_type = "image/png"
         filename = "card.png"
 
-    # 7. ГЕНЕРАЦИЯ ВИДЕО (GIF)
+    # 8. ГЕНЕРАЦИЯ ВИДЕО (GIF)
     else:
         frames = []
-        for angle in range(-20, 21, 4):
+        # Плавное покачивание от -25 до +25 градусов (30 кадров)
+        angles = np.linspace(-25, 25, 30)
+        
+        for angle in angles:
             frame = bg.copy()
-            rotated_product = product_img.rotate(angle, expand=False, resample=Image.BICUBIC)
+            rotated_product = product_img.rotate(angle, expand=True, resample=Image.BICUBIC)
             
             rx = x + (product_img.width - rotated_product.width) // 2
             ry = y + (product_img.height - rotated_product.height) // 2
@@ -175,14 +187,14 @@ async def generate_card(
             format='GIF',
             save_all=True,
             append_images=frames[1:],
-            duration=100,
+            duration=100, # 100 мс = 10 кадров в секунду
             loop=0
         )
         img_byte_arr.seek(0)
         media_type = "image/gif"
         filename = "card.gif"
 
-    # 8. Отправка в Telegram
+    # 9. Отправка в Telegram
     if chat_id:
         if is_video:
             url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendAnimation"
