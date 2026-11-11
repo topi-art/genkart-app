@@ -15,8 +15,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ВАШ АКТУАЛЬНЫЙ ТОКЕН
-BOT_TOKEN = "9195903180:AAF_-oVZiNNNa8P0vEYutD16S1vTv8nHffk" 
+# ВАШ НОВЫЙ ТОКЕН
+BOT_TOKEN = "9195903180:AAGSvvim9L1wkYhCCNRoFk_e090Q_Fyh_58" 
 
 @app.get("/")
 def read_root():
