@@ -41,26 +41,26 @@ async def generate_card(
 ):
     image_data = await file.read()
     
-    # 1. УДАЛЯЕМ ФОН ЧЕРЕЗ REMOVE.BG
+    # 1. УДАЛЯЕМ ФОН ЧЕРЕЗ NOBG (БЕСПЛАТНО, БЕЗ КЛЮЧА)
     product_img = None
     try:
         response = requests.post(
-            'https://api.remove.bg/v1.0/removebg',
-            files={'image_file': image_data},
-            data={'size': 'auto'},
+            'https://api.nobg.akshit.io/api/v1/remove-background',
+            files={'image': ('image.jpg', image_data, 'image/jpeg')},
             timeout=25
         )
-        if response.status_code == 200 and response.headers.get('content-type', '').startswith('image'):
+        if response.status_code == 200:
             product_img = Image.open(io.BytesIO(response.content)).convert("RGBA")
         else:
-            print(f"ОШИБКА REMOVE.BG: {response.text}")
+            print(f"ОШИБКА NOBG: {response.text}")
     except Exception as e:
-        print(f"ОШИБКА REMOVE.BG: {e}")
+        print(f"ОШИБКА NOBG: {e}")
 
+    # Если не сработало, берем оригинал
     if not product_img:
         product_img = Image.open(io.BytesIO(image_data)).convert("RGBA")
 
-    # 2. Фон
+    # 2. Загружаем фон
     bg_info = BACKGROUNDS.get(background, BACKGROUNDS["bg1"])
     try:
         bg = Image.open(bg_info["file"]).convert("RGBA")
