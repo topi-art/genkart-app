@@ -4,6 +4,7 @@ from fastapi.responses import StreamingResponse
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import io
 import requests
+import base64
 
 app = FastAPI()
 
@@ -41,20 +42,18 @@ async def generate_card(
 ):
     image_data = await file.read()
     
-    # 1. УДАЛЯЕМ ФОН ЧЕРЕЗ БЕСПЛАТНЫЙ PUBLIC API HUGGING FACE
+    # 1. УДАЛЯЕМ ФОН ЧЕРЕЗ БЕСПЛАТНЫЙ PUBLIC API HUGGING FACE (U2-Net)
     product_img = None
     try:
-        # Отправляем на бесплатный публичный сервис
+        # Отправляем на публичный сервис
         response = requests.post(
             'https://u2net-remove-background.hf.space/api/predict',
             files={'image': ('image.jpg', image_data, 'image/jpeg')},
             timeout=30
         )
         if response.status_code == 200:
-            import base64
             data = response.json()
             if 'data' in data and len(data['data']) > 0:
-                # Декодируем base64 картинку
                 img_data = base64.b64decode(data['data'][0].split(',')[1])
                 product_img = Image.open(io.BytesIO(img_data)).convert("RGBA")
         else:
