@@ -18,16 +18,18 @@ app.add_middleware(
 
 BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
 
-# ПРОВЕРЕННЫЕ ИМЕНА ФОНОВ
+# ВСЕ 10 ФОНОВ
 BACKGROUNDS = {
-    "bg1": "Screenshot_20261111_135917_Pinterest.jpg", # Ткань
-    "bg2": "Screenshot_20261111_140017_Pinterest.jpg", # Дерево
-    "bg3": "Screenshot_20261111_140026_Pinterest.jpg", # Темный
-    "bg4": "Screenshot_20261111_140051_Pinterest.jpg", # Облака
-    "bg5": "Screenshot_20261111_185352_Pinterest.jpg", # Шелк
-    "bg6": "Screenshot_20261111_185424_Pinterest.jpg", # Лед
-    "bg7": "Screenshot_20261111_185521_Pinterest.jpg", # Мрамор
-    "bg8": "Screenshot_20261111_190043_Pinterest.jpg"  # Стекло
+    "bg1": "Screenshot_20261111_185802_Pinterest.jpg", # Белые облака
+    "bg2": "Screenshot_20261111_190005_Pinterest.jpg", # Лента
+    "bg3": "Screenshot_20261111_185931_Pinterest.jpg", # Травертин
+    "bg4": "Screenshot_20261111_190043_Pinterest.jpg", # Бордовая ткань
+    "bg5": "Screenshot_20261111_190100_Pinterest.jpg", # Жидкое стекло
+    "bg6": "Screenshot_20261111_185352_Pinterest.jpg", # Пузыри
+    "bg7": "Screenshot_20261111_185847_Pinterest.jpg", # Розовые облака
+    "bg8": "Screenshot_20261111_185912_Pinterest.jpg", # Скалы
+    "bg9": "Screenshot_20261111_190025_Pinterest.jpg", # Розовая ткань
+    "bg10": "Screenshot_20261111_185521_Pinterest.jpg" # Оливковый подиум
 }
 
 @app.get("/")
@@ -67,7 +69,7 @@ async def generate_card(
     if not product_img:
         product_img = Image.open(io.BytesIO(image_data)).convert("RGBA")
 
-    # 2. ПОВОРОТ ТОВАРА (Статичный)
+    # 2. ПОВОРОТ ТОВАРА
     if rotation == "left":
         product_img = product_img.rotate(15, expand=True, resample=Image.BICUBIC)
     elif rotation == "right":
@@ -140,7 +142,7 @@ async def generate_card(
                 cy = 350 + i * 80
                 draw.text((80, cy), line, fill=(255, 255, 255), font=font_features)
 
-    # 7. ТЕНЬ И ТОВАР (Для статичной карточки)
+    # 7. ТЕНЬ И ТОВАР
     if not is_video:
         if template in ["template1", "template2", "template3"]:
             shadow = Image.new("RGBA", bg.size, (0, 0, 0, 0))
@@ -160,7 +162,6 @@ async def generate_card(
     # 8. ГЕНЕРАЦИЯ ВИДЕО (GIF)
     else:
         frames = []
-        # Плавное покачивание от -25 до +25 градусов (30 кадров)
         angles = np.linspace(-25, 25, 30)
         
         for angle in angles:
@@ -187,7 +188,7 @@ async def generate_card(
             format='GIF',
             save_all=True,
             append_images=frames[1:],
-            duration=100, # 100 мс = 10 кадров в секунду
+            duration=100,
             loop=0
         )
         img_byte_arr.seek(0)
