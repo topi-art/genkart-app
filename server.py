@@ -15,26 +15,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ВАШ ТОКЕН
-BOT_TOKEN ="9195903180: AAF_ -oVZiNNNa8POvEYut D16SlvTv8nHffk"
-
-# ВАШ ID ДЛЯ ТЕСТА
-TEST_CHAT_ID = "1124115675"
+# ВАШ ТОКЕН (убедитесь, что он актуальный)
+BOT_TOKEN = "9195903180:AAF_-oVZiNNNa8P0vEYutD16S1vTv8nHffk" 
 
 @app.get("/")
 def read_root():
-    # При открытии главной страницы сервер попробует отправить вам сообщение
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    data = {'chat_id': TEST_CHAT_ID, 'text': '✅ Тест связи: сервер успешно отправил это сообщение!'}
-    try:
-        response = requests.post(url, data=data)
-        if response.status_code != 200:
-            print(f"ОШИБКА ТЕСТА: {response.text}")
-        else:
-            print("ТЕСТ ПРОЙДЕН УСПЕШНО")
-    except Exception as e:
-        print(f"ОШИБКА СЕТИ: {e}")
-        
     return {"status": "ok", "message": "Бэкенд работает!"}
 
 @app.post("/generate-card")
@@ -88,15 +73,17 @@ async def generate_card(
     bg.save(img_byte_arr, format='PNG')
     img_byte_arr.seek(0)
     
-    # Отправка картинки (если передан chat_id)
+    # ОТПРАВЛЯЕМ КАК ДОКУМЕНТ (файл)
     if chat_id:
-        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
-        files = {'photo': ('card.png', img_byte_arr.getvalue(), 'image/png')}
-        data = {'chat_id': chat_id, 'caption': 'Ваша карточка готова!'}
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
+        files = {'document': ('card.png', img_byte_arr.getvalue(), 'image/png')}
+        data = {'chat_id': chat_id, 'caption': 'Ваша карточка готова! Сохраните файл.'}
         try:
             response = requests.post(url, files=files, data=data)
             if response.status_code != 200:
-                print(f"ОШИБКА КАРТИНКИ: {response.text}")
+                print(f"ОШИБКА ОТПРАВКИ: {response.text}")
+            else:
+                print("КАРТИНКА УСПЕШНО ОТПРАВЛЕНА В ЧАТ!")
         except Exception as e:
             print(f"ОШИБКА СЕТИ: {e}")
         img_byte_arr.seek(0)
