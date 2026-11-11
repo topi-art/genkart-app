@@ -18,7 +18,17 @@
         .step-number { background: #333; color: var(--muted); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; margin-right: 10px; }
         
         .upload-zone { border: 1.5px dashed #444; border-radius: 12px; padding: 30px 20px; text-align: center; cursor: pointer; position: relative; overflow: hidden; }
-        .preview-img { display: none; width: 100%; height: 200px; object-fit: contain; border-radius: 8px; }
+        .preview-img { display: none; width: 100%; height: 200px; object-fit: contain; border-radius: 8px; transition: filter 0.4s ease; }
+        
+        /* ПЕРЕЛИВАЮЩИЙСЯ БЛЮР */
+        .loading-shimmer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            background-size: 200% 100%; animation: shimmer 1.5s infinite; display: none;
+        }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        .preview-img.is-loading { filter: blur(5px) grayscale(50%); }
+        .preview-img.is-loading + .loading-shimmer { display: block; }
         
         .tabs { display: flex; background: #121212; border-radius: 10px; padding: 4px; margin-bottom: 16px; }
         .tab { flex: 1; text-align: center; padding: 10px 0; font-size: 14px; color: var(--muted); border-radius: 8px; cursor: pointer; font-weight: 600; }
@@ -27,7 +37,6 @@
         .input-text { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #333; background: #121212; color: white; margin-bottom: 10px; font-size: 14px; }
         .input-text::placeholder { color: #555; }
         
-        /* Выбор шаблона */
         .templates { display: flex; gap: 10px; margin-bottom: 15px; }
         .tpl-btn { flex: 1; padding: 12px; background: #121212; color: var(--muted); border: 1px solid #333; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; }
         .tpl-btn.active { background: #2a2a2a; color: var(--accent); border-color: var(--accent); }
@@ -45,27 +54,24 @@
 <body>
     <div class="header"><div class="logo">Gen<span>Kart</span></div></div>
 
-    <!-- Шаг 1 -->
     <div class="step-card">
         <div class="step-header"><div class="step-number">1</div>Ваш товар</div>
         <div class="upload-zone" id="uploadZone">
             <div class="upload-icon" id="uploadIcon" style="font-size: 32px; margin-bottom: 10px;">📦</div>
             <div id="uploadText" style="color: var(--muted); font-size: 14px;">Добавьте фото товара</div>
             <img id="previewImg" class="preview-img">
+            <div class="loading-shimmer"></div>
         </div>
         <input type="file" id="fileInput" accept="image/*">
     </div>
 
-    <!-- Шаг 2 -->
     <div class="step-card">
         <div class="step-header"><div class="step-number">2</div>Настройте генерацию</div>
-        
         <div class="tabs">
             <div class="tab active">Фото</div>
             <div class="tab">Карточка</div>
             <div class="tab">Видео</div>
         </div>
-
         <input type="text" id="titleInput" class="input-text" placeholder="Заголовок (например: CELIMAX)">
         <input type="text" id="subtitleInput" class="input-text" placeholder="Подзаголовок (например: Молочный тонер)">
         
@@ -81,7 +87,6 @@
         <div class="status-text" id="statusText"></div>
     </div>
 
-    <!-- Шаг 3 -->
     <div class="step-card" id="resultsCard" style="display: none;">
         <div class="step-header"><div class="step-number">3</div>Результаты</div>
         <img id="resultImg" class="result-img">
@@ -121,6 +126,9 @@
 
         btnGenerate.addEventListener('click', async () => {
             if (!currentFile) return;
+            
+            // ВКЛЮЧАЕМ БЛЮР
+            previewImg.classList.add('is-loading');
             
             btnGenerate.disabled = true; 
             btnGenerate.innerHTML = "Генерация... ⏳";
@@ -164,15 +172,21 @@
             } catch (error) {
                 tg.showAlert("Ошибка сети. Попробуйте еще раз.");
                 btnGenerate.disabled = false; btnGenerate.innerHTML = "Повторить";
+            } finally {
+                // ВЫКЛЮЧАЕМ БЛЮР
+                previewImg.classList.remove('is-loading');
             }
         });
 
-        // Кнопка скачивания (открывает в браузере)
+        // Кнопка скачивания (принудительно открывает в браузере)
         btnDownload.addEventListener('click', (e) => {
             e.preventDefault();
             if (!btnDownload.href) return;
-            tg.openLink(btnDownload.href);
-            tg.showAlert("Картинка открыта. Зажмите на неё пальцем и выберите 'Сохранить изображение'.");
+            
+            // Используем window.open, чтобы открыть во внешнем браузере
+            window.open(btnDownload.href, '_blank');
+            
+            tg.showAlert("Картинка открыта в браузере. Зажмите на неё пальцем и выберите 'Сохранить изображение'.");
         });
     </script>
 </body>
