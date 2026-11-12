@@ -26,7 +26,8 @@ app.add_middleware(
 
 BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
 
-DATABASE_URL = "sqlite:///./profiles.db"
+# СБРОС БАЗЫ ДАННЫХ (создастся новая таблица)
+DATABASE_URL = "sqlite:///./profiles_v2.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -73,28 +74,33 @@ async def save_profile(
     logo: UploadFile = File(None)
 ):
     db = SessionLocal()
-    profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
-    
-    logo_path = ""
-    if logo:
-        logo_path = f"logo_{chat_id}.png"
-        logo_data = await logo.read()
-        with open(logo_path, "wb") as f:
-            f.write(logo_data)
-    
-    if profile:
-        profile.company = company
-        profile.inn = inn
-        profile.address = address
-        profile.contacts = contacts
-        if logo_path: profile.logo_path = logo_path
-    else:
-        new_profile = Profile(chat_id=chat_id, company=company, inn=inn, address=address, contacts=contacts, logo_path=logo_path)
-        db.add(new_profile)
-    
-    db.commit()
-    db.close()
-    return {"status": "ok", "message": "Профиль сохранен"}
+    try:
+        profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
+        
+        logo_path = ""
+        if logo:
+            logo_path = f"logo_{chat_id}.png"
+            logo_data = await logo.read()
+            with open(logo_path, "wb") as f:
+                f.write(logo_data)
+        
+        if profile:
+            profile.company = company
+            profile.inn = inn
+            profile.address = address
+            profile.contacts = contacts
+            if logo_path: profile.logo_path = logo_path
+        else:
+            new_profile = Profile(chat_id=chat_id, company=company, inn=inn, address=address, contacts=contacts, logo_path=logo_path)
+            db.add(new_profile)
+        
+        db.commit()
+        return {"status": "ok", "message": "Профиль сохранен"}
+    except Exception as e:
+        print(f"ОШИБКА БД: {e}")
+        return {"status": "error", "message": str(e)}
+    finally:
+        db.close()
 
 @app.post("/generate-doc")
 async def generate_doc(
@@ -198,7 +204,6 @@ async def generate_doc(
         c.drawString(60, height - 260, "1. Предмет договора:")
         c.setFont(FONT_REGULAR, 12)
         
-        # Текст с отступами
         text_object = c.beginText(60, height - 280)
         text_object.textLine(f"Исполнитель обязуется оказать услугу: {service}")
         text_object.textLine("")
