@@ -26,7 +26,6 @@ app.add_middleware(
 
 BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
 
-# СБРОС БАЗЫ ДАННЫХ (создастся новая таблица)
 DATABASE_URL = "sqlite:///./profiles_v2.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -121,109 +120,144 @@ async def generate_doc(
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
-    # --- РАМКА ---
-    c.setStrokeColor(colors.HexColor("#cccccc"))
+    # --- 1. РАМКА БЛАНКА ---
+    c.setStrokeColor(colors.black)
     c.setLineWidth(1)
-    c.rect(40, 40, width - 80, height - 80)
+    c.rect(30, 30, width - 60, height - 60)
+    c.setLineWidth(0.5)
+    c.rect(35, 35, width - 70, height - 70)
 
-    # --- ШАПКА (РЕКВИЗИТЫ) ---
+    # --- 2. ШАПКА ---
     if profile.logo_path and os.path.exists(profile.logo_path):
         try:
             img = ImageReader(profile.logo_path)
-            c.drawImage(img, 60, height - 120, width=70, height=70, preserveAspectRatio=True, mask='auto')
+            c.drawImage(img, 50, height - 110, width=80, height=80, preserveAspectRatio=True, mask='auto')
         except: pass
     
     c.setFillColor(colors.black)
     c.setFont(FONT_BOLD, 20)
-    c.drawString(150, height - 80, profile.company)
+    c.drawString(150, height - 70, profile.company)
     
     c.setFont(FONT_REGULAR, 9)
     c.setFillColor(colors.gray)
-    c.drawString(150, height - 95, f"ИНН/КПП: {profile.inn}")
-    c.drawString(150, height - 110, f"Адрес: {profile.address}")
-    c.drawString(150, height - 125, f"Контакты: {profile.contacts}")
+    c.drawString(150, height - 90, f"ИНН/КПП: {profile.inn}")
+    c.drawString(150, height - 105, f"Адрес: {profile.address}")
+    c.drawString(150, height - 120, f"Контакты: {profile.contacts}")
     
     c.setStrokeColor(colors.black)
-    c.setLineWidth(1.5)
-    c.line(60, height - 140, width - 60, height - 140)
+    c.setLineWidth(2)
+    c.line(40, height - 130, width - 40, height - 130)
 
-    # --- ДАТА ---
+    # --- 3. ДАТА ---
     current_date = datetime.now().strftime("%d.%m.%Y")
     c.setFont(FONT_REGULAR, 10)
     c.setFillColor(colors.black)
-    c.drawRightString(width - 60, height - 160, f"Дата: {current_date}")
+    c.drawRightString(width - 50, height - 150, f"Дата: {current_date}")
 
-    # --- ТЕЛО ДОКУМЕНТА ---
+    # --- 4. ТЕЛО ДОКУМЕНТА ---
     if template == "kp":
-        c.setFont(FONT_BOLD, 18)
-        c.drawCentredString(width / 2, height - 210, "КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ")
+        c.setFont(FONT_BOLD, 16)
+        c.drawCentredString(width / 2, height - 180, "КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ")
         
-        c.setFont(FONT_REGULAR, 12)
-        c.drawString(60, height - 250, "Наименование услуги:")
-        c.drawString(250, height - 250, service)
-        
-        c.drawString(60, height - 280, "Сроки:")
-        c.drawString(250, height - 280, term)
-        
-        c.setFont(FONT_BOLD, 14)
-        c.drawString(60, height - 330, "Стоимость:")
-        c.drawString(250, height - 330, price)
-
-    elif template == "smeta":
-        c.setFont(FONT_BOLD, 18)
-        c.drawCentredString(width / 2, height - 210, "СМЕТА")
-        
-        table_top = height - 250
+        # Таблица (Наименование, Стоимость)
+        table_top = height - 220
         c.setFont(FONT_BOLD, 12)
         c.setFillColor(colors.HexColor("#f0f0f0"))
-        c.rect(60, table_top - 25, width - 120, 25, fill=1, stroke=0)
+        c.rect(50, table_top - 25, width - 100, 25, fill=1, stroke=1)
         c.setFillColor(colors.black)
-        c.drawString(70, table_top - 17, "Наименование работ")
-        c.drawRightString(width - 70, table_top - 17, "Стоимость")
+        c.drawString(60, table_top - 17, "Наименование услуги")
+        c.drawString(width - 150, table_top - 17, "Стоимость")
         
-        c.setStrokeColor(colors.black)
-        c.rect(60, table_top - 65, width - 120, 40, fill=0, stroke=1)
+        # Строка таблицы
+        c.rect(50, table_top - 80, width - 100, 55, fill=0, stroke=1)
         c.setFont(FONT_REGULAR, 12)
-        c.drawString(70, table_top - 45, service)
-        c.drawRightString(width - 70, table_top - 45, price)
+        
+        # Текст в таблице (с переносом)
+        text_object = c.beginText(60, table_top - 45)
+        text_object.setFont(FONT_REGULAR, 12)
+        if len(service) > 40:
+            text_object.textLine(service[:40])
+            text_object.textLine(service[40:])
+        else:
+            text_object.textLine(service)
+        c.drawText(text_object)
+
+        c.setFont(FONT_BOLD, 14)
+        c.drawString(width - 150, table_top - 45, price)
 
         # Итого
         c.setFont(FONT_BOLD, 14)
-        c.drawRightString(width - 180, table_top - 100, "ИТОГО:")
-        c.setFont(FONT_BOLD, 16)
-        c.drawRightString(width - 70, table_top - 100, price)
+        c.drawString(width - 250, table_top - 120, "ИТОГО К ОПЛАТЕ:")
+        c.setFont(FONT_BOLD, 18)
+        c.drawRightString(width - 50, table_top - 120, price)
+
+        # Сроки и подпись
+        c.setFont(FONT_REGULAR, 12)
+        c.drawString(60, table_top - 160, f"Сроки оказания услуг: {term}")
         
         c.setFont(FONT_REGULAR, 10)
-        c.drawString(60, table_top - 130, f"Сроки: {term}")
+        c.drawString(60, 100, "Руководитель _______________________")
+        c.drawString(60, 85, "(подпись, расшифровка)")
+        c.drawString(width - 200, 100, "М.П.")
+
+    elif template == "smeta":
+        c.setFont(FONT_BOLD, 16)
+        c.drawCentredString(width / 2, height - 180, "СМЕТА")
+        
+        # Таблица сметы (с колонками)
+        table_top = height - 220
+        c.setFont(FONT_BOLD, 12)
+        c.setFillColor(colors.HexColor("#f0f0f0"))
+        c.rect(50, table_top - 25, width - 100, 25, fill=1, stroke=1)
+        c.setFillColor(colors.black)
+        c.drawString(60, table_top - 17, "№")
+        c.drawString(90, table_top - 17, "Наименование работ")
+        c.drawString(width - 150, table_top - 17, "Стоимость")
+        
+        # Строка
+        c.rect(50, table_top - 80, width - 100, 55, fill=0, stroke=1)
+        c.line(80, table_top - 80, 80, table_top - 25) # Разделитель колонки №
+        
+        c.setFont(FONT_REGULAR, 12)
+        c.drawString(65, table_top - 45, "1")
+        c.drawString(90, table_top - 45, service)
+        c.drawString(width - 150, table_top - 45, price)
+
+        c.setFont(FONT_BOLD, 14)
+        c.drawString(width - 250, table_top - 120, "ИТОГО:")
+        c.setFont(FONT_BOLD, 18)
+        c.drawRightString(width - 50, table_top - 120, price)
+
+        c.setFont(FONT_REGULAR, 12)
+        c.drawString(60, table_top - 160, f"Сроки: {term}")
+
+        c.setFont(FONT_REGULAR, 10)
+        c.drawString(60, 100, "Руководитель _______________________")
+        c.drawString(60, 85, "(подпись, расшифровка)")
+        c.drawString(width - 200, 100, "М.П.")
 
     elif template == "dogovor":
-        c.setFont(FONT_BOLD, 18)
-        c.drawCentredString(width / 2, height - 210, "ДОГОВОР ОКАЗАНИЯ УСЛУГ")
+        c.setFont(FONT_BOLD, 16)
+        c.drawCentredString(width / 2, height - 180, "ДОГОВОР ОКАЗАНИЯ УСЛУГ")
         
         c.setFont(FONT_BOLD, 12)
-        c.drawString(60, height - 260, "1. Предмет договора:")
-        c.setFont(FONT_REGULAR, 12)
+        c.drawString(60, height - 220, "1. Предмет договора:")
         
-        text_object = c.beginText(60, height - 280)
-        text_object.textLine(f"Исполнитель обязуется оказать услугу: {service}")
+        c.setFont(FONT_REGULAR, 12)
+        # Текст с красной строкой (отступом)
+        text_object = c.beginText(80, height - 240)
+        text_object.textLine(f"Исполнитель обязуется оказать услугу: {service}.")
         text_object.textLine("")
-        text_object.textLine(f"Стоимость: {price}")
-        text_object.textLine(f"Сроки: {term}")
+        text_object.textLine(f"Стоимость услуг составляет: {price}.")
+        text_object.textLine(f"Сроки оказания услуг: {term}.")
         c.drawText(text_object)
         
         c.setFont(FONT_BOLD, 12)
-        c.drawString(60, height - 360, "2. Подписи сторон:")
+        c.drawString(60, height - 340, "2. Подписи сторон:")
         
         c.setFont(FONT_REGULAR, 12)
         c.drawString(60, 150, "Исполнитель: _______________________")
         c.drawRightString(width - 60, 150, "Заказчик: _______________________")
-
-    # --- ПОДВАЛ ---
-    c.setFont(FONT_REGULAR, 10)
-    c.setFillColor(colors.gray)
-    c.drawString(60, 80, "Руководитель _______________________")
-    c.drawString(60, 65, "(подпись, расшифровка)")
-    c.drawRightString(width - 60, 80, "М.П.")
 
     c.save()
     buffer.seek(0)
