@@ -17,72 +17,67 @@
         .step-header { display: flex; align-items: center; margin-bottom: 16px; font-size: 16px; font-weight: 600; }
         .step-number { background: #333; color: var(--muted); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; margin-right: 10px; }
         
-        .upload-zone { border: 1.5px dashed #444; border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; position: relative; overflow: hidden; margin-bottom: 10px; }
-        .preview-img { display: none; max-width: 100%; height: 80px; object-fit: contain; border-radius: 8px; margin: 0 auto; }
-        
         .input-text { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #333; background: #121212; color: white; margin-bottom: 10px; font-size: 14px; }
         .input-text::placeholder { color: #555; }
         
-        .templates { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
-        .tpl-btn { flex: 1; min-width: 45%; padding: 12px; background: #121212; color: var(--muted); border: 1px solid #333; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; text-align: center; }
-        .tpl-btn.active { background: #2a2a2a; color: var(--accent); border-color: var(--accent); }
+        .upload-zone { border: 1.5px dashed #444; border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; margin-bottom: 10px; }
+        .preview-img { display: none; max-width: 100%; height: 80px; object-fit: contain; border-radius: 8px; margin: 0 auto; }
 
-        .btn-generate { background: var(--accent); color: var(--accent-txt); border: none; width: 100%; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 10px; }
+        .btn-generate { background: var(--accent); color: var(--accent-txt); border: none; width: 100%; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; margin-bottom: 10px; }
         
         .status-text { font-size: 13px; color: var(--accent); text-align: center; margin-top: 10px; display: none; }
         input[type="file"] { display: none; }
+        
+        #profileSection { display: none; }
+        #generateSection { display: none; }
     </style>
 </head>
 <body>
     <div class="header"><div class="logo">Gen<span>Doc</span></div></div>
 
-    <div class="step-card">
-        <div class="step-header"><div class="step-number">1</div>Ваш логотип</div>
+    <!-- СЕКЦИЯ 1: ЗАПОЛНЕНИЕ ПРОФИЛЯ -->
+    <div id="profileSection" class="step-card">
+        <div class="step-header"><div class="step-number">1</div>Настройте профиль (Один раз)</div>
+        
+        <input type="text" id="companyInput" class="input-text" placeholder="Название вашей компании">
+        <input type="text" id="contactInput" class="input-text" placeholder="Контакты (телефон, сайт, @username)">
+        
         <div class="upload-zone" id="uploadZone">
             <div id="uploadIcon" style="font-size: 24px; margin-bottom: 5px;">🖼️</div>
             <div id="uploadText" style="color: var(--muted); font-size: 13px;">Загрузите логотип (PNG)</div>
             <img id="previewImg" class="preview-img">
         </div>
         <input type="file" id="fileInput" accept="image/png">
+        
+        <button class="btn-generate" id="btnSaveProfile" disabled>Сохранить профиль</button>
+        <div class="status-text" id="statusTextProfile"></div>
     </div>
 
-    <div class="step-card">
-        <div class="step-header"><div class="step-number">2</div>Данные для документа</div>
+    <!-- СЕКЦИЯ 2: ГЕНЕРАЦИЯ -->
+    <div id="generateSection" class="step-card">
+        <div class="step-header"><div class="step-number">2</div>Создайте документ</div>
         
-        <input type="text" id="companyInput" class="input-text" placeholder="Название вашей компании">
         <input type="text" id="serviceInput" class="input-text" placeholder="Что вы предлагаете (услуга)">
         <input type="text" id="priceInput" class="input-text" placeholder="Цена (например: 50 000 руб.)">
-        <input type="text" id="termInput" class="input-text" placeholder="Сроки (например: 14 дней)">
-        <input type="text" id="contactInput" class="input-text" placeholder="Контакты (телефон, сайт, @username)">
+        <input type="text" id="termInput" class="input-text" placeholder="Сроки / Дата">
         
-        <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px; margin-top: 15px;">Стиль документа:</div>
-        <div class="templates">
-            <button class="tpl-btn active" onclick="setTemplate('template1', this)">Строгий (Бизнес)</button>
-            <button class="tpl-btn" onclick="setTemplate('template2', this)">Современный (IT/Маркетинг)</button>
-            <button class="tpl-btn" onclick="setTemplate('template3', this)">Смета (Строительство)</button>
-        </div>
-
-        <button class="btn-generate" id="btnGenerate" disabled>
-            Сгенерировать документ 📄
-        </button>
+        <button class="btn-generate" id="btnGenerateDoc" disabled>Сгенерировать документ 📄</button>
         <div class="status-text" id="statusText"></div>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp; tg.expand(); tg.setHeaderColor('#121212');
-        
-        const uploadZone = document.getElementById('uploadZone'), fileInput = document.getElementById('fileInput');
-        const previewImg = document.getElementById('previewImg'), btnGenerate = document.getElementById('btnGenerate');
-        const statusText = document.getElementById('statusText');
-        let currentFile = null;
-        let currentTemplate = 'template1';
+        const chatId = tg.initDataUnsafe?.user?.id;
 
-        function setTemplate(tpl, btn) {
-            currentTemplate = tpl;
-            document.querySelectorAll('.tpl-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+        if (!chatId) {
+            tg.showAlert("Ошибка: не удалось получить ID пользователя.");
         }
 
+        const uploadZone = document.getElementById('uploadZone'), fileInput = document.getElementById('fileInput');
+        const previewImg = document.getElementById('previewImg');
+        let currentFile = null;
+
+        // Логика логотипа
         uploadZone.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', (e) => {
             currentFile = e.target.files[0];
@@ -97,52 +92,82 @@
             }
         });
 
-        const inputs = document.querySelectorAll('.input-text');
-        inputs.forEach(input => {
+        // Активация кнопки "Сохранить профиль"
+        const profileInputs = [document.getElementById('companyInput'), document.getElementById('contactInput')];
+        profileInputs.forEach(input => {
             input.addEventListener('input', () => {
-                const allFilled = Array.from(inputs).every(i => i.value.trim() !== '');
-                btnGenerate.disabled = !allFilled;
+                const allFilled = profileInputs.every(i => i.value.trim() !== '');
+                document.getElementById('btnSaveProfile').disabled = !allFilled;
             });
         });
 
-        btnGenerate.addEventListener('click', async () => {
-            btnGenerate.disabled = true;
-            btnGenerate.innerHTML = "Создаем PDF... ⏳";
-            statusText.style.display = 'block';
-            statusText.textContent = "Пожалуйста, подождите...";
-
+        // Сохранение профиля
+        document.getElementById('btnSaveProfile').addEventListener('click', async () => {
+            const btn = document.getElementById('btnSaveProfile');
+            btn.disabled = true; btn.textContent = "Сохранение...";
+            
             const formData = new FormData();
-            if (currentFile) formData.append('logo', currentFile);
+            formData.append('chat_id', chatId);
             formData.append('company', document.getElementById('companyInput').value);
+            formData.append('contacts', document.getElementById('contactInput').value);
+            if (currentFile) formData.append('logo', currentFile);
+
+            try {
+                const response = await fetch('https://genkart-app.onrender.com/save-profile', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (response.ok) {
+                    document.getElementById('profileSection').style.display = 'none';
+                    document.getElementById('generateSection').style.display = 'block';
+                    checkGenerateBtn();
+                    tg.showAlert("Профиль сохранен! Теперь вы можете генерировать документы.");
+                }
+            } catch (e) {
+                tg.showAlert("Ошибка сети при сохранении профиля.");
+                btn.disabled = false; btn.textContent = "Сохранить профиль";
+            }
+        });
+
+        // Активация кнопки "Сгенерировать"
+        const genInputs = [document.getElementById('serviceInput'), document.getElementById('priceInput'), document.getElementById('termInput')];
+        function checkGenerateBtn() {
+            const allFilled = genInputs.every(i => i.value.trim() !== '');
+            document.getElementById('btnGenerateDoc').disabled = !allFilled;
+        }
+        genInputs.forEach(input => input.addEventListener('input', checkGenerateBtn));
+
+        // Генерация документа
+        document.getElementById('btnGenerateDoc').addEventListener('click', async () => {
+            const btn = document.getElementById('btnGenerateDoc');
+            btn.disabled = true; btn.textContent = "Создаем PDF... ⏳";
+            
+            const formData = new FormData();
+            formData.append('chat_id', chatId);
             formData.append('service', document.getElementById('serviceInput').value);
             formData.append('price', document.getElementById('priceInput').value);
             formData.append('term', document.getElementById('termInput').value);
-            formData.append('contacts', document.getElementById('contactInput').value);
-            formData.append('template', currentTemplate);
-            
-            if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-                formData.append('chat_id', tg.initDataUnsafe.user.id);
-            }
+            formData.append('template', 'template1');
 
             try {
                 const response = await fetch('https://genkart-app.onrender.com/generate-doc', {
                     method: 'POST',
                     body: formData
                 });
-
                 if (response.ok) {
-                    statusText.textContent = "Готово! Документ отправлен в чат.";
-                    tg.showAlert("Документ отправлен в чат с ботом! Закройте приложение и проверьте сообщения.");
+                    tg.showAlert("Документ отправлен в чат! Закройте приложение и проверьте сообщения.");
                 } else {
                     tg.showAlert("Ошибка на сервере.");
                 }
-            } catch (error) {
+            } catch (e) {
                 tg.showAlert("Ошибка сети.");
             } finally {
-                btnGenerate.disabled = false;
-                btnGenerate.innerHTML = "Сгенерировать документ 📄";
+                btn.disabled = false; btn.textContent = "Сгенерировать документ 📄";
             }
         });
+
+        // Показываем профиль по умолчанию (так как база данных новая)
+        document.getElementById('profileSection').style.display = 'block';
     </script>
 </body>
 </html>
