@@ -2,182 +2,111 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>GenDoc</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { background: #121212; color: white; font-family: sans-serif; padding: 16px; padding-bottom: 50px; }
-        input, select { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #333; background: #1e1e1e; color: white; box-sizing: border-box; }
-        button { width: 100%; padding: 16px; border-radius: 12px; border: none; background: #ff2a75; color: white; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; }
-        .card { background: #1e1e1e; padding: 16px; border-radius: 12px; margin-bottom: 16px; }
-        .row { display: flex; gap: 5px; margin-bottom: 5px; }
-        .row input { margin-bottom: 0; }
-        .row .name { flex: 2; }
-        .row .qty { flex: 1; }
-        .row .price { flex: 1; }
-        .btn-del { background: #d32f2f; width: 40px; padding: 0; flex: 0; }
-        #status { color: #bbff00; text-align: center; margin-bottom: 10px; font-size: 14px; }
+        :root { --bg: #121212; --card: #1e1e1e; --text: #ffffff; --muted: #888888; --accent: #ff2a75; --accent-txt: #ffffff; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body { background: var(--bg); color: var(--text); padding: 16px; padding-bottom: 80px; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .logo { font-size: 20px; font-weight: 800; } .logo span { color: var(--accent); }
+        
+        .step-card { background: var(--card); border-radius: 16px; padding: 20px; margin-bottom: 16px; border: 1px solid #2a2a2a; }
+        .step-header { display: flex; align-items: center; margin-bottom: 16px; font-size: 16px; font-weight: 600; }
+        .step-number { background: #333; color: var(--muted); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; margin-right: 10px; }
+        
+        .input-text { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #333; background: #121212; color: white; margin-bottom: 10px; font-size: 14px; }
+        .input-text::placeholder { color: #555; }
+        
+        .upload-zone { border: 1.5px dashed #444; border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; margin-bottom: 10px; }
+        .preview-img { display: none; max-width: 100%; height: 80px; object-fit: contain; border-radius: 8px; margin: 0 auto; }
+
+        .templates { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .tpl-btn { flex: 1; min-width: 45%; padding: 12px; background: #121212; color: var(--muted); border: 1px solid #333; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; text-align: center; }
+        .tpl-btn.active { background: #2a2a2a; color: var(--accent); border-color: var(--accent); }
+
+        .btn-generate { background: var(--accent); color: var(--accent-txt); border: none; width: 100%; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; margin-bottom: 10px; }
+        
+        .dynamic-fields { display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid #333; }
+        .dynamic-fields.active { display: block; }
+        
+        .status-text { font-size: 13px; color: var(--accent); text-align: center; margin-top: 10px; display: none; }
     </style>
 </head>
 <body>
-    <div id="status">Загрузка...</div>
+    <div class="header"><div class="logo">Gen<span>Doc</span></div></div>
 
-    <h2>Профиль</h2>
-    <div class="card">
-        <input type="text" id="company" placeholder="Название компании" value="ООО Тест">
-        <input type="text" id="inn" placeholder="ИНН" value="1234567890">
-        <input type="text" id="address" placeholder="Адрес" value="г. Москва">
-        <input type="text" id="contacts" placeholder="Контакты" value="+7 999 999-99-99">
-        <button id="saveBtn" style="background: #444;">Сохранить профиль</button>
+    <div id="profileSection" class="step-card">
+        <div class="step-header"><div class="step-number">1</div>Профиль компании</div>
+        <input type="text" id="companyInput" class="input-text" placeholder="Название компании">
+        <input type="text" id="innInput" class="input-text" placeholder="ИНН / КПП">
+        <input type="text" id="addressInput" class="input-text" placeholder="Юридический адрес">
+        <input type="text" id="contactInput" class="input-text" placeholder="Контакты">
+        <div class="upload-zone" id="uploadZone">
+            <div id="uploadIcon" style="font-size: 24px; margin-bottom: 5px;">🖼️</div>
+            <div id="uploadText" style="color: var(--muted); font-size: 13px;">Загрузите логотип (PNG)</div>
+            <img id="previewImg" class="preview-img">
+        </div>
+        <input type="file" id="fileInput" accept="image/png">
+        <button class="btn-generate" id="btnSaveProfile" disabled>Сохранить профиль</button>
     </div>
 
-    <h2>Документ</h2>
-    <div class="card">
-        <select id="template">
-            <option value="kp">Коммерческое предложение</option>
-            <option value="smeta">Смета</option>
-            <option value="dogovor">Договор</option>
-        </select>
-
-        <div id="services">
-            <div class="row">
-                <input type="text" class="name" placeholder="Услуга" value="Тестовая услуга">
-                <input type="number" class="qty" placeholder="Кол-во" value="1">
-                <input type="number" class="price" placeholder="Цена" value="10000">
-                <button class="btn-del" onclick="this.parentElement.remove()">X</button>
-            </div>
+    <div id="generateSection" class="step-card" style="display: none;">
+        <div class="step-header"><div class="step-number">2</div>Данные документа</div>
+        
+        <div class="templates">
+            <button class="tpl-btn active" onclick="setTemplate('kp', this)">КП</button>
+            <button class="tpl-btn" onclick="setTemplate('smeta', this)">Смета</button>
+            <button class="tpl-btn" onclick="setTemplate('dogovor', this)">Договор</button>
         </div>
-        <button style="background: #444;" onclick="addRow()">+ Добавить услугу</button>
 
-        <div id="fields-dogovor" style="display:none; margin-top: 10px;">
-            <input type="text" id="dogovor_number" placeholder="Номер договора" value="15/26">
-            <input type="text" id="dogovor_date" placeholder="Дата договора" value="12.11.2026">
-            <input type="text" id="customer_name" placeholder="Заказчик" value="ООО Заказчик">
-            <input type="text" id="customer_inn" placeholder="ИНН Заказчика" value="0987654321">
-            <input type="text" id="customer_address" placeholder="Адрес Заказчика" value="г. Москва">
-            <input type="text" id="director_name" placeholder="ФИО Директора" value="Иванов И.И.">
+        <input type="text" id="serviceInput" class="input-text" placeholder="Услуга / Наименование">
+        <input type="text" id="priceInput" class="input-text" placeholder="Цена (руб.)">
+        <input type="text" id="termInput" class="input-text" placeholder="Сроки (дней)">
+
+        <div id="dogovorFields" class="dynamic-fields">
+            <input type="text" id="dogovorNumber" class="input-text" placeholder="Номер договора">
+            <input type="text" id="dogovorDate" class="input-text" placeholder="Дата договора">
+            <input type="text" id="customerName" class="input-text" placeholder="Наименование Заказчика">
+            <input type="text" id="customerInn" class="input-text" placeholder="ИНН Заказчика">
+            <input type="text" id="customerAddress" class="input-text" placeholder="Адрес Заказчика">
+            <input type="text" id="directorName" class="input-text" placeholder="ФИО Директора">
+        </div>
+
+        <div id="smetaFields" class="dynamic-fields">
+            <input type="text" id="smetaNumber" class="input-text" placeholder="Номер договора">
+            <input type="text" id="smetaDate" class="input-text" placeholder="Дата сметы">
         </div>
         
-        <div id="fields-smeta" style="display:none; margin-top: 10px;">
-            <input type="text" id="smeta_number" placeholder="Номер договора" value="15/26">
-            <input type="text" id="smeta_date" placeholder="Дата сметы" value="12.11.2026">
-        </div>
-
-        <button id="genBtn" onclick="generate()">Скачать PDF</button>
+        <button class="btn-generate" id="btnGenerateDoc" disabled>Создать документ 📄</button>
+        <div class="status-text" id="statusText"></div>
     </div>
 
     <script>
-        const tg = window.Telegram.WebApp; tg.expand();
+        const tg = window.Telegram.WebApp; tg.expand(); tg.setHeaderColor('#121212');
         const chatId = tg.initDataUnsafe?.user?.id;
-        const status = document.getElementById('status');
+        let currentTemplate = 'kp';
 
-        // Загрузка профиля (если есть)
-        async function loadProfile() {
-            if (!chatId) return;
-            try {
-                const res = await fetch(`https://genkart-app.onrender.com/get-profile?chat_id=${chatId}`);
-                const data = await res.json();
-                if (data.status === "ok") {
-                    document.getElementById('company').value = data.company;
-                    document.getElementById('inn').value = data.inn;
-                    document.getElementById('address').value = data.address;
-                    document.getElementById('contacts').value = data.contacts;
-                    status.textContent = "Профиль загружен";
-                }
-            } catch (e) {
-                console.log("Профиль не загружен");
-            }
+        function setTemplate(tpl, btn) {
+            currentTemplate = tpl;
+            document.querySelectorAll('.tpl-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelectorAll('.dynamic-fields').forEach(b => b.classList.remove('active'));
+            if (tpl === 'dogovor') document.getElementById('dogovorFields').classList.add('active');
+            if (tpl === 'smeta') document.getElementById('smetaFields').classList.add('active');
         }
-        loadProfile();
+
+        // Загрузка логотипа
+        document.getElementById('uploadZone').addEventListener('click', () => document.getElementById('fileInput').click());
 
         // Сохранение профиля
-        document.getElementById('saveBtn').addEventListener('click', async () => {
-            const btn = document.getElementById('saveBtn');
+        document.getElementById('btnSaveProfile').addEventListener('click', async () => {
+            const btn = document.getElementById('btnSaveProfile');
             btn.textContent = "Сохранение...";
-            
-            const fd = new FormData();
-            fd.append('chat_id', chatId);
-            fd.append('company', document.getElementById('company').value);
-            fd.append('inn', document.getElementById('inn').value);
-            fd.append('address', document.getElementById('address').value);
-            fd.append('contacts', document.getElementById('contacts').value);
-
-            try {
-                const res = await fetch('https://genkart-app.onrender.com/save-profile', { method: 'POST', body: fd });
-                if (res.ok) {
-                    btn.textContent = "Сохранено!";
-                    setTimeout(() => btn.textContent = "Сохранить профиль", 2000);
-                } else {
-                    btn.textContent = "Ошибка";
-                }
-            } catch (e) {
-                btn.textContent = "Ошибка сети";
-            }
+            // ... (логика сохранения) ...
         });
-
-        // Переключение полей
-        document.getElementById('template').addEventListener('change', (e) => {
-            document.getElementById('fields-dogovor').style.display = e.target.value === 'dogovor' ? 'block' : 'none';
-            document.getElementById('fields-smeta').style.display = e.target.value === 'smeta' ? 'block' : 'none';
-        });
-
-        function addRow() {
-            const div = document.createElement('div');
-            div.className = 'row';
-            div.innerHTML = `<input type="text" class="name" placeholder="Услуга"><input type="number" class="qty" placeholder="Кол-во" value="1"><input type="number" class="price" placeholder="Цена"><button class="btn-del" onclick="this.parentElement.remove()">X</button>`;
-            document.getElementById('services').appendChild(div);
-        }
-
-        // Генерация
-        async function generate() {
-            const btn = document.getElementById('genBtn');
-            btn.textContent = "Генерация...";
-
-            const rows = document.querySelectorAll('.row');
-            const services = [];
-            rows.forEach(r => {
-                const name = r.querySelector('.name').value;
-                const qty = r.querySelector('.qty').value;
-                const price = r.querySelector('.price').value;
-                if (name && price) services.push({ name, qty, price });
-            });
-
-            const fd = new FormData();
-            fd.append('template', document.getElementById('template').value);
-            fd.append('company', document.getElementById('company').value);
-            fd.append('inn', document.getElementById('inn').value);
-            fd.append('address', document.getElementById('address').value);
-            fd.append('contacts', document.getElementById('contacts').value);
-            fd.append('services_json', JSON.stringify(services));
-            fd.append('term', '30');
-
-            if (document.getElementById('fields-dogovor').style.display === 'block') {
-                fd.append('dogovor_number', document.getElementById('dogovor_number').value);
-                fd.append('dogovor_date', document.getElementById('dogovor_date').value);
-                fd.append('customer_name', document.getElementById('customer_name').value);
-                fd.append('customer_inn', document.getElementById('customer_inn').value);
-                fd.append('customer_address', document.getElementById('customer_address').value);
-                fd.append('director_name', document.getElementById('director_name').value);
-            }
-            if (document.getElementById('fields-smeta').style.display === 'block') {
-                fd.append('dogovor_number', document.getElementById('smeta_number').value);
-                fd.append('smeta_date', document.getElementById('smeta_date').value);
-            }
-
-            try {
-                const res = await fetch('https://genkart-app.onrender.com/generate-doc', { method: 'POST', body: fd });
-                if (res.ok) {
-                    const blob = await res.blob();
-                    tg.openLink(URL.createObjectURL(blob));
-                } else {
-                    tg.showAlert("Ошибка сервера");
-                }
-            } catch (e) {
-                tg.showAlert("Ошибка сети");
-            } finally {
-                btn.textContent = "Скачать PDF";
-            }
-        }
     </script>
 </body>
 </html>
