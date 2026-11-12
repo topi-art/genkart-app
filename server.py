@@ -4,6 +4,7 @@ from fastapi.responses import StreamingResponse
 import io
 import requests
 import os
+import json
 from datetime import datetime
 from sqlalchemy import create_engine, Column, String, Integer, DateTime
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -21,7 +22,6 @@ app.add_middleware(
 
 BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
 
-# СБРОС БАЗЫ ДАННЫХ (создастся новый файл profiles_v6.db)
 DATABASE_URL = "sqlite:///./profiles_v6.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -85,10 +85,9 @@ async def save_profile(
 @app.post("/generate-doc")
 async def generate_doc(
     chat_id: str = Form(...),
-    service: str = Form(...),
-    price: str = Form(...),
-    term: str = Form("30"),
     template: str = Form("kp"),
+    services_json: str = Form("[]"),
+    term: str = Form("30"),
     dogovor_number: str = Form("Б/Н"),
     dogovor_date: str = Form(""),
     customer_name: str = Form(""),
@@ -111,12 +110,21 @@ async def generate_doc(
         db.close()
         return {"status": "limit_reached", "message": "Лимит бесплатных документов исчерпан."}
 
+    services = json.loads(services_json)
+    total_price = sum(float(s['price']) * int(s['qty']) for s in services)
+    
     buffer = io.BytesIO()
     current_date = datetime.now().strftime("%d.%m.%Y")
     date_to_use = dogovor_date if dogovor_date else current_date
     smeta_date_to_use = smeta_date if smeta_date else current_date
 
+    # --- ГЕНЕРАЦИЯ КП ---
     if template == "kp":
+        rows_html = ""
+        for i, s in enumerate(services):
+            amount = float(s['price']) * int(s['qty'])
+            rows_html += f"<tr><td>{i+1}</td><td>{s['name']}</td><td>{term} дней</td><td class='right'>{amount:.2f}</td></tr>"
+
         html_content = f"""
         <!DOCTYPE html>
         <html lang="ru">
@@ -128,10 +136,8 @@ async def generate_doc(
                 .header {{ text-align: left; border-bottom: 1px solid #000; padding-bottom: 10px; margin-bottom: 20px; }}
                 .title {{ text-align: center; font-weight: bold; font-size: 14pt; margin: 20px 0; }}
                 table {{ width: 100%; border-collapse: collapse; margin: 15px 0; }}
-                table, th, td {{ border: 1px solid #000; }}
-                th, td {{ padding: 8px; text-align: left; }}
+                table, th, td {{ border: 1px solid #000; padding: 8px; }}
                 .right {{ text-align: right; }}
-                .bold {{ font-weight: bold; }}
             </style>
         </head>
         <body>
@@ -143,28 +149,33 @@ async def generate_doc(
             </div>
             <div style="text-align: right;">Исх. № ___ от {current_date} г.</div>
             <div class="title">КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ<br>на оказание услуг</div>
-            <p>Уважаемый(ая) [Имя Отчество клиента]!</p>
-            <p>Компания {profile.company} предлагает вам услуги: <strong>{service}</strong> на следующих условиях:</p>
+            <p>Компания {profile.company} предлагает вам следующие услуги:</p>
             <table>
-                <tr><th>№</th><th>Наименование услуги</th><th>Срок выполнения</th><th>Стоимость, руб.</th></tr>
-                <tr><td>1</td><td>{service}</td><td>{term} дней</td><td class="right">{price},00</td></tr>
+                <tr><th>№</th><th>Наименование услуги</th><th>Срок</th><th>Стоимость, руб.</th></tr>
+                {rows_html}
             </table>
-            <p class="right bold">Итого к оплате: {price} (Сумма прописью) рублей 00 копеек, НДС не облагается (УСН).</p>
-            <p class="bold">Условия сотрудничества:</p>
+            <p class="right"><strong>Итого к оплате: {total_price:.2f} руб.</strong> (НДС не облагается, УСН)</p>
+            
+            <p><strong>Условия сотрудничества:</strong></p>
             <ol>
-                <li>Настоящее коммерческое предложение действительно в течение 14 (четырнадцати) календарных дней с даты его формирования.</li>
-                <li>Порядок оплаты: 100% постоплата в течение 3 (трех) банковских дней с момента выставления счета и подписания акта оказанных услуг.</li>
-                <li>Ответственность за сохранность груза в пути застрахована.</li>
-                <li>Указанные цены носят информационный характер. Настоящее КП не является публичной офертой в соответствии со ст. 437 ГК РФ.</li>
+                <li>КП действительно в течение 14 календарных дней.</li>
+                <li>Порядок оплаты: 100% постоплата в течение 3 банковских дней.</li>
+                <li>Гарантия на работы 12 месяцев.</li>
             </ol>
-            <br><br>
+            <br>
             <p>С уважением,<br>Генеральный директор {profile.company} _______________ / {director_name} /</p>
         </body>
         </html>
         """
         pisa.CreatePDF(html_content, dest=buffer)
 
+    # --- ГЕНЕРАЦИЯ СМЕТЫ ---
     elif template == "smeta":
+        rows_html = ""
+        for i, s in enumerate(services):
+            amount = float(s['price']) * int(s['qty'])
+            rows_html += f"<tr><td>{i+1}</td><td>{s['name']}</td><td>усл.</td><td class='num'>{s['qty']}</td><td class='num'>{s['price']}</td><td class='num'>{amount:.2f}</td></tr>"
+
         html_content = f"""
         <!DOCTYPE html>
         <html lang="ru">
@@ -184,17 +195,14 @@ async def generate_doc(
             </style>
         </head>
         <body>
-            <div class="app-header">
-                Приложение № 1<br>
-                к Договору оказания услуг № {dogovor_number} от {smeta_date_to_use} г.
-            </div>
+            <div class="app-header">Приложение № 1<br>к Договору № {dogovor_number} от {smeta_date_to_use} г.</div>
             <h1>СМЕТА НА ОКАЗАНИЕ УСЛУГ</h1>
             <table>
-                <tr><th>№</th><th>Наименование работ / услуг</th><th>Ед. изм.</th><th>Кол-во</th><th>Цена, руб.</th><th>Сумма, руб.</th></tr>
-                <tr><td style="text-align: center;">1</td><td>{service}</td><td style="text-align: center;">усл.</td><td class="num">1</td><td class="num">{price},00</td><td class="num">{price},00</td></tr>
-                <tr class="bold"><td colspan="5" class="num">Всего к оплате:</td><td class="num">{price},00</td></tr>
+                <tr><th>№</th><th>Наименование</th><th>Ед.</th><th>Кол-во</th><th>Цена, руб.</th><th>Сумма, руб.</th></tr>
+                {rows_html}
+                <tr class="bold"><td colspan="5" class="num">Всего к оплате:</td><td class="num">{total_price:.2f}</td></tr>
             </table>
-            <p style="margin-top: 15px;"><strong>Всего наименований 1, на сумму {price} (Сумма прописью) рублей 00 копеек.</strong></p>
+            <p style="margin-top: 15px;"><strong>Всего наименований {len(services)}, на сумму {total_price:.2f} рублей.</strong></p>
             <table class="signs">
                 <tr>
                     <td style="border: none; width: 50%;"><strong>Исполнитель:</strong><br><br>________________ / {director_name} /<br>М.П.</td>
@@ -206,6 +214,7 @@ async def generate_doc(
         """
         pisa.CreatePDF(html_content, dest=buffer)
 
+    # --- ГЕНЕРАЦИЯ ДОГОВОРА ---
     elif template == "dogovor":
         html_content = f"""
         <!DOCTYPE html>
@@ -224,20 +233,16 @@ async def generate_doc(
         <body>
             <div class="title">ДОГОВОР ОКАЗАНИЯ УСЛУГ № {dogovor_number}</div>
             <div class="meta"><span>г. Москва</span><span>«{date_to_use}» г.</span></div>
-            <p>{profile.company}, именуемое в дальнейшем «Исполнитель», в лице {director_name}, действующего на основании Устава, с одной стороны, и {customer_name} (ИНН: {customer_inn}, адрес: {customer_address}), именуемое в дальнейшем «Заказчик», в лице представителя, действующего на основании Устава, с другой стороны, заключили настоящий Договор о нижеследующем:</p>
-            <p><strong>1. ПРЕДМЕТ ДОГОВОРА</strong><br>1.1. Исполнитель обязуется по заданию Заказчика оказать услуги: {service}.</p>
-            <p><strong>2. СТОИМОСТЬ УСЛУГ И ПОРЯДОК РАСЧЕТОВ</strong><br>2.1. Общая стоимость Услуг составляет {price} руб.<br>2.2. Оплата производится в течение 3 банковских дней с момента подписания Акта.</p>
-            <p><strong>3. ОТВЕТСТВЕННОСТЬ СТОРОН</strong><br>3.1. За нарушение сроков оплаты Заказчик уплачивает неустойку 0,1% за каждый день просрочки.</p>
-            <p><strong>4. ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ</strong><br>4.1. Договор вступает в силу с момента подписания и действует до полного исполнения обязательств.</p>
+            <p>{profile.company}, в лице {director_name}, с одной стороны, и {customer_name} (ИНН: {customer_inn}, адрес: {customer_address}), с другой стороны, заключили Договор:</p>
+            <p><strong>1. ПРЕДМЕТ ДОГОВОРА</strong><br>1.1. Исполнитель обязуется оказать услуги, указанные в Смете (Приложение № 1).</p>
+            <p><strong>2. СТОИМОСТЬ И ПОРЯДОК РАСЧЕТОВ</strong><br>2.1. Общая стоимость Услуг составляет {total_price:.2f} руб.<br>2.2. Оплата в течение 3 банковских дней.</p>
+            <p><strong>3. ОТВЕТСТВЕННОСТЬ СТОРОН</strong><br>3.1. За нарушение сроков оплаты неустойка 0,1%.</p>
+            <p><strong>4. ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ</strong><br>4.1. Договор действует до полного исполнения.</p>
             <br><br>
             <table class="signs">
                 <tr>
-                    <td>
-                        <strong>ИСПОЛНИТЕЛЬ:</strong><br>{profile.company}<br>ИНН: {profile.inn}<br>Адрес: {profile.address}<br><br>Генеральный директор<br>________________ / {director_name} /<br>М.П.
-                    </td>
-                    <td>
-                        <strong>ЗАКАЗЧИК:</strong><br>{customer_name}<br>ИНН: {customer_inn}<br>Адрес: {customer_address}<br><br>Должность<br>________________ / ФИО /<br>М.П.
-                    </td>
+                    <td><strong>ИСПОЛНИТЕЛЬ:</strong><br>{profile.company}<br>ИНН: {profile.inn}<br><br>________________ / {director_name} /</td>
+                    <td><strong>ЗАКАЗЧИК:</strong><br>{customer_name}<br>ИНН: {customer_inn}<br><br>________________ / ФИО /</td>
                 </tr>
             </table>
         </body>
