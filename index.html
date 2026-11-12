@@ -2,199 +2,58 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GenDoc</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        :root { --bg: #121212; --card: #1e1e1e; --text: #ffffff; --muted: #888888; --accent: #ff2a75; --accent-txt: #ffffff; }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        body { background: var(--bg); color: var(--text); padding: 16px; padding-bottom: 80px; }
-        
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .logo { font-size: 20px; font-weight: 800; } .logo span { color: var(--accent); }
-        
-        .step-card { background: var(--card); border-radius: 16px; padding: 20px; margin-bottom: 16px; border: 1px solid #2a2a2a; }
-        .step-header { display: flex; align-items: center; margin-bottom: 16px; font-size: 16px; font-weight: 600; }
-        .step-number { background: #333; color: var(--muted); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; margin-right: 10px; }
-        
-        .input-text { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #333; background: #121212; color: white; margin-bottom: 10px; font-size: 14px; }
-        .input-text::placeholder { color: #555; }
-        
-        .upload-zone { border: 1.5px dashed #444; border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; margin-bottom: 10px; }
-        .preview-img { display: none; max-width: 100%; height: 80px; object-fit: contain; border-radius: 8px; margin: 0 auto; }
-
-        .templates { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
-        .tpl-btn { flex: 1; min-width: 45%; padding: 12px; background: #121212; color: var(--muted); border: 1px solid #333; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; text-align: center; }
-        .tpl-btn.active { background: #2a2a2a; color: var(--accent); border-color: var(--accent); }
-
-        .btn-generate { background: var(--accent); color: var(--accent-txt); border: none; width: 100%; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; margin-bottom: 10px; }
-        .btn-add { background: #333; color: white; border: none; width: 100%; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 15px; }
-        
-        .service-row { display: flex; gap: 5px; margin-bottom: 5px; align-items: center; }
-        .service-row input { margin-bottom: 0; }
-        .service-row .input-name { flex: 2; }
-        .service-row .input-qty { flex: 1; }
-        .service-row .input-price { flex: 1; }
-        .btn-remove { background: #ff4444; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; }
-
-        .dynamic-block { display: none; }
-        .dynamic-block.active { display: block; }
-        
-        .status-text { font-size: 13px; color: var(--accent); text-align: center; margin-top: 10px; display: none; }
+        body { background: #121212; color: white; font-family: sans-serif; padding: 20px; }
+        input { width: 100%; padding: 15px; margin-bottom: 10px; border-radius: 10px; border: 1px solid #333; background: #1e1e1e; color: white; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; border-radius: 10px; border: none; background: #ff2a75; color: white; font-weight: bold; font-size: 16px; margin-top: 10px; }
+        h2 { margin-bottom: 15px; }
     </style>
 </head>
 <body>
-    <div class="header"><div class="logo">Gen<span>Doc</span></div></div>
-
-    <div id="profileSection" class="step-card">
-        <div class="step-header"><div class="step-number">1</div>Профиль компании (Исполнитель)</div>
-        <input type="text" id="companyInput" class="input-text" placeholder="Название компании">
-        <input type="text" id="innInput" class="input-text" placeholder="ИНН / КПП">
-        <input type="text" id="addressInput" class="input-text" placeholder="Юридический адрес">
-        <input type="text" id="contactInput" class="input-text" placeholder="Контакты">
-        <div class="upload-zone" id="uploadZone">
-            <div id="uploadIcon" style="font-size: 24px; margin-bottom: 5px;">🖼️</div>
-            <div id="uploadText" style="color: var(--muted); font-size: 13px;">Загрузите логотип (PNG)</div>
-            <img id="previewImg" class="preview-img">
-        </div>
-        <input type="file" id="fileInput" accept="image/png">
-        <button class="btn-generate" id="btnSaveProfile" disabled>Сохранить профиль</button>
-    </div>
-
-    <div id="generateSection" class="step-card" style="display: none;">
-        <div class="step-header"><div class="step-number">2</div>Данные документа</div>
-        
-        <div class="templates">
-            <button class="tpl-btn active" onclick="setTemplate('kp', this)">КП</button>
-            <button class="tpl-btn" onclick="setTemplate('smeta', this)">Смета</button>
-            <button class="tpl-btn" onclick="setTemplate('dogovor', this)">Договор</button>
-        </div>
-
-        <!-- Таблица услуг -->
-        <div id="servicesContainer">
-            <div class="service-row">
-                <input type="text" class="input-text input-name" placeholder="Наименование">
-                <input type="number" class="input-text input-qty" placeholder="Кол-во" value="1">
-                <input type="number" class="input-text input-price" placeholder="Цена">
-                <button class="btn-remove" onclick="this.parentElement.remove()">✕</button>
-            </div>
-        </div>
-        <button class="btn-add" onclick="addServiceRow()">+ Добавить услугу</button>
-
-        <div id="block-kp" class="dynamic-block active">
-            <input type="text" id="kpTerm" class="input-text" placeholder="Сроки (дней)">
-        </div>
-
-        <div id="block-smeta" class="dynamic-block">
-            <input type="text" id="smetaNumber" class="input-text" placeholder="Номер договора">
-            <input type="text" id="smetaDate" class="input-text" placeholder="Дата сметы">
-        </div>
-
-        <div id="block-dogovor" class="dynamic-block">
-            <input type="text" id="dogovorNumber" class="input-text" placeholder="Номер договора">
-            <input type="text" id="dogovorDate" class="input-text" placeholder="Дата договора">
-            <input type="text" id="customerName" class="input-text" placeholder="Наименование Заказчика">
-            <input type="text" id="customerInn" class="input-text" placeholder="ИНН Заказчика">
-            <input type="text" id="customerAddress" class="input-text" placeholder="Адрес Заказчика">
-            <input type="text" id="directorName" class="input-text" placeholder="ФИО Директора">
-        </div>
-        
-        <button class="btn-generate" id="btnGenerateDoc">Создать документ 📄</button>
-        <div class="status-text" id="statusText"></div>
-    </div>
+    <h2>Шаг 1: Профиль</h2>
+    <input type="text" id="company" placeholder="Название компании">
+    <input type="text" id="inn" placeholder="ИНН">
+    <input type="text" id="address" placeholder="Адрес">
+    <input type="text" id="contacts" placeholder="Контакты">
+    
+    <button id="saveBtn">Сохранить профиль</button>
 
     <script>
-        const tg = window.Telegram.WebApp; tg.expand(); tg.setHeaderColor('#121212');
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        
         const chatId = tg.initDataUnsafe?.user?.id;
-        let currentTemplate = 'kp';
+        if (!chatId) alert("Ошибка: нет ID пользователя");
 
-        function setTemplate(tpl, btn) {
-            currentTemplate = tpl;
-            document.querySelectorAll('.tpl-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            document.querySelectorAll('.dynamic-block').forEach(b => b.classList.remove('active'));
-            if (tpl === 'kp') document.getElementById('block-kp').classList.add('active');
-            if (tpl === 'smeta') document.getElementById('block-smeta').classList.add('active');
-            if (tpl === 'dogovor') document.getElementById('block-dogovor').classList.add('active');
-        }
+        document.getElementById('saveBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('saveBtn');
+            btn.textContent = "Сохранение...";
 
-        function addServiceRow() {
-            const container = document.getElementById('servicesContainer');
-            const row = document.createElement('div');
-            row.className = 'service-row';
-            row.innerHTML = `
-                <input type="text" class="input-text input-name" placeholder="Наименование">
-                <input type="number" class="input-text input-qty" placeholder="Кол-во" value="1">
-                <input type="number" class="input-text input-price" placeholder="Цена">
-                <button class="btn-remove" onclick="this.parentElement.remove()">✕</button>
-            `;
-            container.appendChild(row);
-        }
-
-        // Сохранение профиля
-        document.getElementById('btnSaveProfile').addEventListener('click', async () => {
             const formData = new FormData();
             formData.append('chat_id', chatId);
-            formData.append('company', document.getElementById('companyInput').value);
-            formData.append('inn', document.getElementById('innInput').value);
-            formData.append('address', document.getElementById('addressInput').value);
-            formData.append('contacts', document.getElementById('contactInput').value);
-            
-            const response = await fetch('https://genkart-app.onrender.com/save-profile', { method: 'POST', body: formData });
-            if (response.ok) {
-                document.getElementById('profileSection').style.display = 'none';
-                document.getElementById('generateSection').style.display = 'block';
-            }
-        });
-
-        // Генерация документа
-        document.getElementById('btnGenerateDoc').addEventListener('click', async () => {
-            const btn = document.getElementById('btnGenerateDoc');
-            btn.disabled = true; btn.textContent = "Создаем PDF... ⏳";
-            
-            const formData = new FormData();
-            formData.append('chat_id', chatId);
-            formData.append('template', currentTemplate);
-
-            // Собираем данные таблицы в JSON
-            const rows = document.querySelectorAll('.service-row');
-            const services = [];
-            rows.forEach(row => {
-                const name = row.querySelector('.input-name').value;
-                const qty = row.querySelector('.input-qty').value;
-                const price = row.querySelector('.input-price').value;
-                if (name && price) {
-                    services.push({ name, qty, price });
-                }
-            });
-            formData.append('services_json', JSON.stringify(services));
-
-            // Добавляем специфичные поля
-            if (currentTemplate === 'kp') formData.append('term', document.getElementById('kpTerm').value);
-            if (currentTemplate === 'smeta') {
-                formData.append('dogovor_number', document.getElementById('smetaNumber').value);
-                formData.append('smeta_date', document.getElementById('smetaDate').value);
-            }
-            if (currentTemplate === 'dogovor') {
-                formData.append('dogovor_number', document.getElementById('dogovorNumber').value);
-                formData.append('dogovor_date', document.getElementById('dogovorDate').value);
-                formData.append('customer_name', document.getElementById('customerName').value);
-                formData.append('customer_inn', document.getElementById('customerInn').value);
-                formData.append('customer_address', document.getElementById('customerAddress').value);
-                formData.append('director_name', document.getElementById('directorName').value);
-            }
+            formData.append('company', document.getElementById('company').value);
+            formData.append('inn', document.getElementById('inn').value);
+            formData.append('address', document.getElementById('address').value);
+            formData.append('contacts', document.getElementById('contacts').value);
 
             try {
-                const response = await fetch('https://genkart-app.onrender.com/generate-doc', { method: 'POST', body: formData });
+                const response = await fetch('https://genkart-app.onrender.com/save-profile', {
+                    method: 'POST',
+                    body: formData
+                });
                 if (response.ok) {
-                    tg.showAlert("Документ отправлен в чат!");
+                    alert("Профиль сохранен!");
+                    btn.textContent = "Сохранено!";
                 } else {
-                    tg.showAlert("Ошибка на сервере.");
+                    alert("Ошибка сервера при сохранении.");
+                    btn.textContent = "Ошибка";
                 }
             } catch (e) {
-                tg.showAlert("Ошибка сети.");
-            } finally {
-                btn.disabled = false; btn.textContent = "Создать документ 📄";
+                alert("Ошибка сети.");
+                btn.textContent = "Ошибка сети";
             }
         });
     </script>
