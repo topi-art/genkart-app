@@ -4,6 +4,7 @@ from fastapi.responses import StreamingResponse
 import io
 import requests
 import os
+from datetime import datetime
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
@@ -137,8 +138,10 @@ async def generate_doc(
     c.setFont(FONT_NAME, 16)
     c.drawCentredString(width / 2, height - 160, "КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ")
     
+    # Автоматическая дата
+    current_date = datetime.now().strftime("%d.%m.%Y")
     c.setFont(FONT_NAME, 10)
-    c.drawString(50, height - 190, f"Дата: {term}")
+    c.drawString(50, height - 190, f"Дата: {current_date}")
 
     # --- 4. ТАБЛИЦА ---
     table_top = height - 230
@@ -165,13 +168,17 @@ async def generate_doc(
     c.setFont(FONT_NAME, 14)
     c.drawString(width - 190, table_top - 45, price)
 
-    # --- 5. ИТОГО ---
+    # --- 5. ИТОГО (ИСПРАВЛЕНО) ---
     c.setFont(FONT_NAME, 14)
-    c.drawString(width - 250, table_top - 120, "ИТОГО К ОПЛАТЕ:")
+    c.drawString(width - 280, table_top - 120, "ИТОГО К ОПЛАТЕ:")
     c.setFont(FONT_NAME, 18)
-    c.drawString(width - 150, table_top - 120, price)
+    c.drawRightString(width - 50, table_top - 120, price) # Прижато к правому краю
 
-    # --- 6. ПОДВАЛ ---
+    # --- 6. СРОКИ (ОТДЕЛЬНОЙ СТРОКОЙ) ---
+    c.setFont(FONT_NAME, 12)
+    c.drawString(50, table_top - 120, f"Сроки: {term}")
+
+    # --- 7. ПОДВАЛ ---
     c.setFont(FONT_NAME, 10)
     c.drawString(50, 80, "Руководитель _______________________")
     c.drawString(50, 60, "(подпись, расшифровка)")
