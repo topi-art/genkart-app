@@ -1,8 +1,7 @@
-from fastapi import FastAPI, File, UploadFile, Form
+from fastapi import FastAPI, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import JSONResponse
 import io
-import os
 import json
 import requests
 from datetime import datetime
@@ -165,14 +164,18 @@ async def generate_doc(
                 response = requests.post(url, files=files, data=data)
                 print(f"=== ОТВЕТ ОТ TELEGRAM API: {response.status_code} ===")
                 print(f"=== ТЕКСТ ОТВЕТА: {response.text} ===")
+                
+                if response.status_code == 200:
+                    return {"status": "ok", "message": "Отправлено в ТГ"}
+                else:
+                    return JSONResponse(status_code=500, content={"status": "error", "message": f"Ошибка ТГ: {response.text}"})
+                    
             except Exception as e:
                 print(f"=== КРИТИЧЕСКАЯ ОШИБКА ОТПРАВКИ В ТГ: {e} ===")
                 return JSONResponse(status_code=500, content={"status": "error", "message": f"Ошибка ТГ: {str(e)}"})
         else:
             print("=== CHAT_ID ОТСУТСТВУЕТ, ОТПРАВКА В ТГ ПРОПУЩЕНА ===")
-
-        buffer.seek(0)
-        return StreamingResponse(buffer, media_type="application/pdf")
+            return {"status": "error", "message": "Нет chat_id"}
 
     except Exception as e:
         print(f"=== ОШИБКА ПРИ ГЕНЕРАЦИИ ДОКУМЕНТА: {e} ===")
