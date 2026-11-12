@@ -106,7 +106,7 @@ async def generate_doc(
     price: str = Form(...),
     term: str = Form(...),
     template: str = Form("kp"),
-    payment: str = Form("prepay") # Новый параметр
+    payment: str = Form("prepay")
 ):
     db = SessionLocal()
     profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
@@ -164,11 +164,11 @@ async def generate_doc(
 
     # --- ОПРЕДЕЛЯЕМ ТЕКСТ УСЛОВИЙ ОПЛАТЫ ---
     if payment == "prepay":
-        payment_text = "100% предоплата перед началом выполнения работ."
+        payment_text = "100% предоплата"
     elif payment == "half":
-        payment_text = "50% предоплата, 50% по факту сдачи работ."
+        payment_text = "50% предоплата, 50% по факту"
     else:
-        payment_text = "100% постоплата после подписания акта выполненных работ."
+        payment_text = "100% постоплата"
 
     # --- ТЕЛО ---
     if template == "kp":
@@ -199,7 +199,7 @@ async def generate_doc(
         c.drawString(width - 150, table_top - 45, price)
 
         c.setFont(FONT_BOLD, 14)
-        c.drawString(width - 250, table_top - 120, "ИТОГО К ОПЛАТЕ:")
+        c.drawString(width - 350, table_top - 120, "ИТОГО К ОПЛАТЕ:")
         c.setFont(FONT_BOLD, 18)
         c.drawRightString(width - 50, table_top - 120, price)
 
@@ -212,19 +212,29 @@ async def generate_doc(
         c.setFont(FONT_REGULAR, 12)
         c.drawString(60, table_top - 160, f"Сроки оказания услуг: {term_text}")
         
-        # УСЛОВИЯ
+        # --- ЮРИДИЧЕСКИЕ УСЛОВИЯ ДЛЯ КП ---
         c.setFont(FONT_BOLD, 12)
-        c.drawString(60, table_top - 220, "Условия сотрудничества:")
-        c.setFont(FONT_REGULAR, 10)
-        conditions = [
-            f"1. Порядок оплаты: {payment_text}",
-            "2. Предложение действительно в течение 14 календарных дней.",
-            "3. Гарантия на выполненные работы составляет 12 месяцев."
+        c.drawString(60, table_top - 220, "УСЛОВИЯ ПРЕДЛОЖЕНИЯ:")
+        
+        c.setFont(FONT_REGULAR, 9)
+        conditions_kp = [
+            "1. Настоящее коммерческое предложение (КП) действительно в течение 14 (четырнадцати) календарных дней с даты его формирования.",
+            f"2. Порядок оплаты: {payment_text} от общей стоимости в течение 3 (трех) банковских дней с момента выставления счета.",
+            "3. Гарантия на выполняемые работы (поставляемый товар) составляет 12 месяцев с момента подписания закрывающих документов.",
+            "4. Указанные цены носят информационный характер. Настоящее КП не является публичной офертой в соответствии со ст. 437 ГК РФ."
         ]
         y_pos = table_top - 240
-        for cond in conditions:
-            c.drawString(60, y_pos, cond)
-            y_pos -= 15
+        for cond in conditions_kp:
+            text_object = c.beginText(60, y_pos)
+            text_object.setFont(FONT_REGULAR, 9)
+            # Простой перенос длинных строк
+            if len(cond) > 110:
+                text_object.textLine(cond[:110])
+                text_object.textLine(cond[110:])
+            else:
+                text_object.textLine(cond)
+            c.drawText(text_object)
+            y_pos -= 30
 
     elif template == "smeta":
         c.setFont(FONT_BOLD, 16)
@@ -248,7 +258,7 @@ async def generate_doc(
         c.drawString(width - 150, table_top - 45, price)
 
         c.setFont(FONT_BOLD, 14)
-        c.drawString(width - 250, table_top - 120, "ИТОГО:")
+        c.drawString(width - 350, table_top - 120, "ИТОГО:")
         c.setFont(FONT_BOLD, 18)
         c.drawRightString(width - 50, table_top - 120, price)
 
@@ -261,12 +271,28 @@ async def generate_doc(
         c.setFont(FONT_REGULAR, 12)
         c.drawString(60, table_top - 160, f"Сроки: {term_text}")
 
-        # УСЛОВИЯ
+        # --- ЮРИДИЧЕСКИЕ ПРИМЕЧАНИЯ ДЛЯ СМЕТЫ ---
         c.setFont(FONT_BOLD, 12)
-        c.drawString(60, table_top - 220, "Примечание:")
-        c.setFont(FONT_REGULAR, 10)
-        c.drawString(60, table_top - 240, f"Порядок оплаты: {payment_text}")
-        c.drawString(60, table_top - 260, "Смета является предварительной.")
+        c.drawString(60, table_top - 220, "ПРИМЕЧАНИЯ К СМЕТЕ:")
+        
+        c.setFont(FONT_REGULAR, 9)
+        conditions_smeta = [
+            "1. Настоящая Смета является неотъемлемой частью Договора (Приложение № 1) и действительна только при наличии подписей обеих Сторон.",
+            "2. Расчет является предварительным. Итоговая стоимость может быть скорректирована при изменении объема работ более чем на 10%.",
+            "3. Транспортные расходы и доставка: рассчитываются отдельно по тарифам транспортной компании и оплачиваются Заказчиком.",
+            "4. В стоимость сметы не включены дополнительные работы, не указанные в перечне выше."
+        ]
+        y_pos = table_top - 240
+        for cond in conditions_smeta:
+            text_object = c.beginText(60, y_pos)
+            text_object.setFont(FONT_REGULAR, 9)
+            if len(cond) > 110:
+                text_object.textLine(cond[:110])
+                text_object.textLine(cond[110:])
+            else:
+                text_object.textLine(cond)
+            c.drawText(text_object)
+            y_pos -= 30
 
     elif template == "dogovor":
         c.setFont(FONT_BOLD, 16)
@@ -275,11 +301,11 @@ async def generate_doc(
         c.setFont(FONT_BOLD, 12)
         c.drawString(60, height - 230, "1. Предмет договора:")
         
-        c.setFont(FONT_REGULAR, 12)
+        c.setFont(FONT_REGULAR, 11)
         text_object = c.beginText(80, height - 250)
         text_object.textLine(f"Исполнитель обязуется оказать услугу: {service}.")
-        text_object.textLine("")
         text_object.textLine(f"Стоимость услуг составляет: {price}.")
+        text_object.textLine(f"Порядок оплаты: {payment_text}.")
         
         if term.isdigit():
             delivery_date = (datetime.now() + timedelta(days=int(term))).strftime("%d.%m.%Y")
@@ -288,15 +314,34 @@ async def generate_doc(
             term_text = term
         text_object.textLine(f"Сроки оказания услуг: {term_text}.")
         c.drawText(text_object)
-        
+
+        # --- ЮРИДИЧЕСКИЕ ПОЛОЖЕНИЯ ДЛЯ ДОГОВОРА ---
         c.setFont(FONT_BOLD, 12)
-        c.drawString(60, height - 340, "2. Порядок расчетов:")
-        c.setFont(FONT_REGULAR, 12)
-        c.drawString(80, height - 360, payment_text) # Вставляем выбранный текст оплаты
+        c.drawString(60, height - 340, "ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ И ОТВЕТСТВЕННОСТЬ СТОРОН:")
+        
+        c.setFont(FONT_REGULAR, 9)
+        conditions_dogovor = [
+            "1. Настоящий Договор вступает в силу с момента его подписания обеими Сторонами и действует до полного исполнения обязательств.",
+            "2. Приемка результатов работ оформляется двусторонним Актом. Заказчик обязан подписать Акт в течение 3 рабочих дней или направить мотивированный отказ.",
+            "3. За нарушение сроков оплаты Заказчик уплачивает неустойку 0,1% от суммы задолженности за каждый день просрочки, но не более 10%.",
+            "4. За нарушение сроков исполнения обязательств Исполнитель уплачивает неустойку 0,1% от стоимости неисполненной части, но не более 10%.",
+            "5. Все споры решаются путем переговоров, а при недостижении согласия — в Арбитражном суде по месту нахождения Истца."
+        ]
+        y_pos = height - 360
+        for cond in conditions_dogovor:
+            text_object = c.beginText(60, y_pos)
+            text_object.setFont(FONT_REGULAR, 9)
+            if len(cond) > 110:
+                text_object.textLine(cond[:110])
+                text_object.textLine(cond[110:])
+            else:
+                text_object.textLine(cond)
+            c.drawText(text_object)
+            y_pos -= 25
 
         c.setFont(FONT_BOLD, 12)
-        c.drawString(60, height - 400, "3. Подписи сторон:")
-        c.setFont(FONT_REGULAR, 12)
+        c.drawString(60, height - 520, "Подписи сторон:")
+        c.setFont(FONT_REGULAR, 11)
         c.drawString(60, 150, "Исполнитель: _______________________")
         c.drawRightString(width - 60, 150, "Заказчик: _______________________")
 
