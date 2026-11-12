@@ -37,7 +37,6 @@ class Profile(Base):
     logo_path = Column(String)
     documents_count = Column(Integer, default=0)
     subscription_end_date = Column(DateTime, nullable=True)
-    custom_conditions = Column(Text, nullable=True)
 
 Base.metadata.create_all(bind=engine)
 
@@ -92,8 +91,7 @@ async def generate_doc(
     customer_inn: str = Form(""),
     customer_address: str = Form(""),
     director_name: str = Form(""),
-    smeta_date: str = Form(""),
-    contract_sections: str = Form(None)
+    smeta_date: str = Form("")
 ):
     db = SessionLocal()
     profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
@@ -111,7 +109,6 @@ async def generate_doc(
 
     buffer = io.BytesIO()
     current_date = datetime.now().strftime("%d.%m.%Y")
-    
     date_to_use = dogovor_date if dogovor_date else current_date
     smeta_date_to_use = smeta_date if smeta_date else current_date
 
@@ -248,18 +245,6 @@ async def generate_doc(
 
     # --- ГЕНЕРАЦИЯ ДОГОВОРА (ПО ВАШЕМУ ПРИМЕРУ) ---
     elif template == "dogovor":
-        # Если клиент не ввел свой текст, используем стандартный
-        if not contract_sections:
-            contract_sections = """
-            1. ПРЕДМЕТ ДОГОВОРА
-            1.1. Исполнитель обязуется по заданию Заказчика оказать услуги: {service}.
-            2. СТОИМОСТЬ УСЛУГ
-            2.1. Общая стоимость Услуг составляет {price} руб.
-            """.format(service=service, price=price)
-
-        # Преобразуем переносы строк в HTML-теги
-        sections_html = contract_sections.replace('\n', '<br>')
-
         html_content = f"""
         <!DOCTYPE html>
         <html lang="ru">
@@ -281,9 +266,20 @@ async def generate_doc(
                 <span>«{date_to_use}» г.</span>
             </div>
             
-            <p>{profile.company}, именуемое в дальнейшем «Исполнитель», в лице {director_name}, с одной стороны, и {customer_name} (ИНН: {customer_inn}, адрес: {customer_address}), именуемое в дальнейшем «Заказчик», с другой стороны, заключили настоящий Договор о нижеследующем:</p>
+            <p>{profile.company}, именуемое в дальнейшем «Исполнитель», в лице {director_name}, действующего на основании Устава, с одной стороны, и {customer_name} (ИНН: {customer_inn}, адрес: {customer_address}), именуемое в дальнейшем «Заказчик», в лице представителя, действующего на основании Устава, с другой стороны, заключили настоящий Договор о нижеследующем:</p>
             
-            <div>{sections_html}</div>
+            <p><strong>1. ПРЕДМЕТ ДОГОВОРА</strong><br>
+            1.1. Исполнитель обязуется по заданию Заказчика оказать услуги: {service}.</p>
+            
+            <p><strong>2. СТОИМОСТЬ УСЛУГ И ПОРЯДОК РАСЧЕТОВ</strong><br>
+            2.1. Общая стоимость Услуг составляет {price} руб.<br>
+            2.2. Оплата производится в течение 3 банковских дней с момента подписания Акта.</p>
+            
+            <p><strong>3. ОТВЕТСТВЕННОСТЬ СТОРОН</strong><br>
+            3.1. За нарушение сроков оплаты Заказчик уплачивает неустойку 0,1% за каждый день просрочки.</p>
+            
+            <p><strong>4. ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ</strong><br>
+            4.1. Договор вступает в силу с момента подписания и действует до полного исполнения обязательств.</p>
             
             <br><br>
             <table class="signs">
