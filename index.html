@@ -43,7 +43,9 @@
     <div id="profileSection" class="step-card">
         <div class="step-header"><div class="step-number">1</div>Настройте профиль (Один раз)</div>
         
-        <input type="text" id="companyInput" class="input-text" placeholder="Название вашей компании">
+        <input type="text" id="companyInput" class="input-text" placeholder="Название компании (ООО, ИП)">
+        <input type="text" id="innInput" class="input-text" placeholder="ИНН / КПП">
+        <input type="text" id="addressInput" class="input-text" placeholder="Юридический адрес">
         <input type="text" id="contactInput" class="input-text" placeholder="Контакты (телефон, сайт, @username)">
         
         <div class="upload-zone" id="uploadZone">
@@ -108,7 +110,14 @@
             }
         });
 
-        const profileInputs = [document.getElementById('companyInput'), document.getElementById('contactInput')];
+        // Проверка заполнения всех полей профиля
+        const profileInputs = [
+            document.getElementById('companyInput'), 
+            document.getElementById('innInput'),
+            document.getElementById('addressInput'),
+            document.getElementById('contactInput')
+        ];
+        
         profileInputs.forEach(input => {
             input.addEventListener('input', () => {
                 const allFilled = profileInputs.every(i => i.value.trim() !== '');
@@ -123,6 +132,8 @@
             const formData = new FormData();
             formData.append('chat_id', chatId);
             formData.append('company', document.getElementById('companyInput').value);
+            formData.append('inn', document.getElementById('innInput').value);
+            formData.append('address', document.getElementById('addressInput').value);
             formData.append('contacts', document.getElementById('contactInput').value);
             if (currentFile) formData.append('logo', currentFile);
 
@@ -148,37 +159,4 @@
             const allFilled = genInputs.every(i => i.value.trim() !== '');
             document.getElementById('btnGenerateDoc').disabled = !allFilled;
         }
-        genInputs.forEach(input => input.addEventListener('input', checkGenerateBtn));
-
-        document.getElementById('btnGenerateDoc').addEventListener('click', async () => {
-            const btn = document.getElementById('btnGenerateDoc');
-            btn.disabled = true; btn.textContent = "Создаем PDF... ⏳";
-            
-            const formData = new FormData();
-            formData.append('chat_id', chatId);
-            formData.append('service', document.getElementById('serviceInput').value);
-            formData.append('price', document.getElementById('priceInput').value);
-            formData.append('term', document.getElementById('termInput').value);
-            formData.append('template', currentTemplate);
-
-            try {
-                const response = await fetch('https://genkart-app.onrender.com/generate-doc', {
-                    method: 'POST',
-                    body: formData
-                });
-                if (response.ok) {
-                    tg.showAlert("Документ отправлен в чат!");
-                } else {
-                    tg.showAlert("Ошибка на сервере.");
-                }
-            } catch (e) {
-                tg.showAlert("Ошибка сети.");
-            } finally {
-                btn.disabled = false; btn.textContent = "Сгенерировать документ 📄";
-            }
-        });
-
-        document.getElementById('profileSection').style.display = 'block';
-    </script>
-</body>
-</html>
+        genInputs.forEach(input => input.addEventListener('input', check
