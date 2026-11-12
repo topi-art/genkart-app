@@ -12,7 +12,7 @@ from reportlab.lib import colors
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from sqlalchemy import create_engine, Column, String, Integer
+from sqlalchemy import create_engine, Column, String, Integer, DateTime
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 app = FastAPI()
@@ -27,7 +27,7 @@ app.add_middleware(
 
 BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
 
-DATABASE_URL = "sqlite:///./profiles_v2.db"
+DATABASE_URL = "sqlite:///./profiles_v3.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -41,19 +41,19 @@ class Profile(Base):
     address = Column(String)
     contacts = Column(String)
     logo_path = Column(String)
+    documents_count = Column(Integer, default=0)
+    subscription_end_date = Column(DateTime, nullable=True)
 
 Base.metadata.create_all(bind=engine)
 
-# --- ПОИСК КРАСИВЫХ ШРИФТОВ (С ЗАСЕЧКАМИ И БЕЗ) ---
+# --- ПОИСК КРАСИВЫХ ШРИФТОВ ---
 FONT_REGULAR = 'Helvetica'
 FONT_BOLD = 'Helvetica-Bold'
 possible_paths = [
-    # Шрифты без засечек (для заголовков)
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-    # Шрифты с засечками (для текста, как Times New Roman)
     "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"
+    "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
 ]
 for path in possible_paths:
     if os.path.exists(path):
@@ -116,10 +116,17 @@ async def generate_doc(
 ):
     db = SessionLocal()
     profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
-    db.close()
-
+    
     if not profile:
+        db.close()
         return {"status": "error", "message": "Сначала заполните профиль"}
+
+    now = datetime.now()
+    has_subscription = profile.subscription_end_date and profile.subscription_end_date > now
+
+    if not has_subscription and profile.documents_count >= 3:
+        db.close()
+        return {"status": "limit_reached", "message": "Лимит бесплатных документов исчерпан. Оформите подписку."}
 
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
@@ -142,22 +149,24 @@ async def generate_doc(
     c.setLineWidth(0.5)
     c.rect(35, 35, width - 70, height - 70)
 
-    # --- ШАПКА ---
+    # --- ИСПРАВЛЕННАЯ ШАПКА ---
     if profile.logo_path and os.path.exists(profile.logo_path):
         try:
             img = ImageReader(profile.logo_path)
-            c.drawImage(img, 50, height - 110, width=80, height=80, preserveAspectRatio=True, mask='auto')
+            # Рисуем логотип строго в углу, размер 60x60
+            c.drawImage(img, 45, height - 95, width=60, height=60, preserveAspectRatio=True, mask='auto')
         except: pass
     
     c.setFillColor(colors.black)
     c.setFont(FONT_BOLD, 20)
-    c.drawString(150, height - 70, profile.company)
+    # Текст сдвинут правее, чтобы не налезать на логотип (начинается с 120)
+    c.drawString(120, height - 60, profile.company) 
     
     c.setFont(FONT_REGULAR, 9)
     c.setFillColor(colors.gray)
-    c.drawString(150, height - 90, f"ИНН/КПП: {profile.inn}")
-    c.drawString(150, height - 105, f"Адрес: {profile.address}")
-    c.drawString(150, height - 120, f"Контакты: {profile.contacts}")
+    c.drawString(120, height - 80, f"ИНН/КПП: {profile.inn}")
+    c.drawString(120, height - 95, f"Адрес: {profile.address}")
+    c.drawString(120, height - 110, f"Контакты: {profile.contacts}")
     
     c.setStrokeColor(colors.black)
     c.setLineWidth(2)
@@ -176,7 +185,7 @@ async def generate_doc(
     else:
         payment_text = "100% постоплата"
 
-    # --- ТЕЛО ---
+    # --- ТЕЛО (КАК БЫЛО РАНЬШЕ) ---
     if template == "kp":
         c.setFont(FONT_BOLD, 16)
         c.drawCentredString(width / 2, height - 190, "КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ")
@@ -218,7 +227,6 @@ async def generate_doc(
         c.setFont(FONT_REGULAR, 12)
         c.drawString(60, table_top - 160, f"Сроки оказания услуг: {term_text}")
         
-        # --- УСЛОВИЯ ДЛЯ КП ---
         c.setFont(FONT_BOLD, 12)
         c.drawString(60, table_top - 220, "УСЛОВИЯ ПРЕДЛОЖЕНИЯ:")
         
@@ -273,7 +281,6 @@ async def generate_doc(
         c.setFont(FONT_REGULAR, 12)
         c.drawString(60, table_top - 160, f"Сроки: {term_text}")
 
-        # --- ПРИМЕЧАНИЯ ДЛЯ СМЕТЫ ---
         c.setFont(FONT_BOLD, 12)
         c.drawString(60, table_top - 220, "ПРИМЕЧАНИЯ К СМЕТЕ:")
         
@@ -314,7 +321,6 @@ async def generate_doc(
         text_object.textLine(f"Сроки оказания услуг: {term_text}.")
         c.drawText(text_object)
 
-        # --- ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ ДЛЯ ДОГОВОРА ---
         c.setFont(FONT_BOLD, 12)
         c.drawString(60, height - 340, "ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ И ОТВЕТСТВЕННОСТЬ СТОРОН:")
         
@@ -343,6 +349,12 @@ async def generate_doc(
 
     c.save()
     buffer.seek(0)
+
+    if not has_subscription:
+        profile.documents_count += 1
+        db.commit()
+    
+    db.close()
 
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
     files = {'document': ('document.pdf', buffer.getvalue(), 'application/pdf')}
