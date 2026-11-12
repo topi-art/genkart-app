@@ -38,14 +38,18 @@ class Profile(Base):
 
 Base.metadata.create_all(bind=engine)
 
-# --- СТИЛИ ПО ГОСТ (Поля, шрифты, защита подписей) ---
+# --- СТИЛИ ПО ГОСТ + ВСТРОЕННЫЙ ШРИФТ PT SANS (для кириллицы) ---
 CSS_STYLES = """
 @page { 
     size: a4; 
     margin: 20mm 15mm 20mm 30mm; /* Верх 20, Право 15, Низ 20, Лево 30 */
 }
+@font-face {
+    font-family: "PTSans";
+    src: url("https://github.com/google/fonts/raw/main/ofl/ptsans/PT_Sans-Web-Regular.ttf");
+}
 body { 
-    font-family: 'DejaVu Sans', sans-serif; 
+    font-family: "PTSans", sans-serif; 
     font-size: 11pt; 
     line-height: 1.35; 
     text-align: justify; 
@@ -84,7 +88,7 @@ th, td {
 .signatures { 
     width: 100%; 
     margin-top: 40px; 
-    break-inside: avoid; /* Защита от разрыва подписей */
+    break-inside: avoid; 
     page-break-inside: avoid;
 }
 .signatures td { 
