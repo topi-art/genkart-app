@@ -4,15 +4,8 @@ from fastapi.responses import StreamingResponse
 import io
 import requests
 import os
-from datetime import datetime, timedelta
-from textwrap import wrap
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib import colors
-from reportlab.lib.utils import ImageReader
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from sqlalchemy import create_engine, Column, String, Integer, DateTime
+from datetime import datetime
+from sqlalchemy import create_engine, Column, String, Integer, DateTime, Text
 from sqlalchemy.orm import declarative_base, sessionmaker
 from xhtml2pdf import pisa
 
@@ -28,7 +21,7 @@ app.add_middleware(
 
 BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
 
-DATABASE_URL = "sqlite:///./profiles_v3.db"
+DATABASE_URL = "sqlite:///./profiles_v5.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -44,24 +37,9 @@ class Profile(Base):
     logo_path = Column(String)
     documents_count = Column(Integer, default=0)
     subscription_end_date = Column(DateTime, nullable=True)
+    custom_conditions = Column(Text, nullable=True)
 
 Base.metadata.create_all(bind=engine)
-
-FONT_REGULAR = 'Helvetica'
-FONT_BOLD = 'Helvetica-Bold'
-possible_paths = [
-    "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-]
-for path in possible_paths:
-    if os.path.exists(path):
-        try:
-            pdfmetrics.registerFont(TTFont('CustomFont', path))
-            FONT_REGULAR = 'CustomFont'
-            FONT_BOLD = 'CustomFont'
-            break
-        except: pass
 
 @app.get("/")
 def read_root():
@@ -76,7 +54,6 @@ async def save_profile(
     contacts: str = Form(...),
     logo: UploadFile = File(None)
 ):
-    # (Логика сохранения профиля без изменений)
     db = SessionLocal()
     try:
         profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
@@ -107,16 +84,16 @@ async def generate_doc(
     chat_id: str = Form(...),
     service: str = Form(...),
     price: str = Form(...),
+    term: str = Form("30"),
     template: str = Form("kp"),
-    # Новые поля
-    dogovor_number: str = Form(None),
-    dogovor_date: str = Form(None),
-    customer_name: str = Form(None),
-    customer_inn: str = Form(None),
-    customer_address: str = Form(None),
-    director_name: str = Form(None),
-    smeta_term: str = Form(None),
-    smeta_date: str = Form(None)
+    dogovor_number: str = Form("Б/Н"),
+    dogovor_date: str = Form(""),
+    customer_name: str = Form(""),
+    customer_inn: str = Form(""),
+    customer_address: str = Form(""),
+    director_name: str = Form(""),
+    smeta_date: str = Form(""),
+    contract_sections: str = Form(None)
 ):
     db = SessionLocal()
     profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
@@ -134,12 +111,12 @@ async def generate_doc(
 
     buffer = io.BytesIO()
     current_date = datetime.now().strftime("%d.%m.%Y")
+    
+    date_to_use = dogovor_date if dogovor_date else current_date
+    smeta_date_to_use = smeta_date if smeta_date else current_date
 
-    if template == "smeta":
-        # Используем HTML-шаблон для сметы (передаем smeta_term и smeta_date)
-        date_to_use = smeta_date if smeta_date else current_date
-        term_to_use = smeta_term if smeta_term else "30"
-        
+    # --- ГЕНЕРАЦИЯ КП (ПО ВАШЕМУ ПРИМЕРУ) ---
+    if template == "kp":
         html_content = f"""
         <!DOCTYPE html>
         <html lang="ru">
@@ -147,162 +124,195 @@ async def generate_doc(
             <meta charset="UTF-8">
             <style>
                 @page {{ size: A4; margin: 20mm; }}
-                body {{ font-family: Arial, sans-serif; font-size: 10pt; color: #000; margin: 0; }}
-                .app-header {{ text-align: right; font-size: 9.5pt; margin-bottom: 20px; }}
-                h1 {{ text-align: center; font-size: 13pt; margin-bottom: 15px; }}
-                table.smeta {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
-                table.smeta th, table.smeta td {{ border: 1px solid #000; padding: 6px 8px; }}
-                table.smeta th {{ background: #eaeaea; text-align: center; font-weight: bold; }}
-                .num {{ text-align: right; white-space: nowrap; }}
-                .center {{ text-align: center; }}
+                body {{ font-family: "Times New Roman", serif; font-size: 11pt; line-height: 1.35; }}
+                .header {{ text-align: left; border-bottom: 1px solid #000; padding-bottom: 10px; margin-bottom: 20px; }}
+                .title {{ text-align: center; font-weight: bold; font-size: 14pt; margin: 20px 0; }}
+                table {{ width: 100%; border-collapse: collapse; margin: 15px 0; }}
+                table, th, td {{ border: 1px solid #000; }}
+                th, td {{ padding: 8px; text-align: left; }}
+                .right {{ text-align: right; }}
+                .bold {{ font-weight: bold; }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <strong>{profile.company}</strong><br>
+                ИНН {profile.inn}<br>
+                Адрес: {profile.address}<br>
+                Тел.: {profile.contacts}
+            </div>
+            
+            <div style="text-align: right;">Исх. № ___ от {current_date} г.</div>
+            
+            <div class="title">КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ<br>на оказание услуг</div>
+            
+            <p>Уважаемый(ая) [Имя Отчество клиента]!</p>
+            <p>Компания {profile.company} предлагает вам услуги: <strong>{service}</strong> на следующих условиях:</p>
+            
+            <table>
+                <tr>
+                    <th>№</th>
+                    <th>Наименование услуги</th>
+                    <th>Срок выполнения</th>
+                    <th>Стоимость, руб.</th>
+                </tr>
+                <tr>
+                    <td>1</td>
+                    <td>{service}</td>
+                    <td>{term} дней</td>
+                    <td class="right">{price},00</td>
+                </tr>
+            </table>
+            
+            <p class="right bold">Итого к оплате: {price} (Сумма прописью) рублей 00 копеек, НДС не облагается (УСН).</p>
+            
+            <p class="bold">Условия сотрудничества:</p>
+            <ol>
+                <li>Настоящее коммерческое предложение действительно в течение 14 (четырнадцати) календарных дней с даты его формирования.</li>
+                <li>Порядок оплаты: 100% постоплата в течение 3 (трех) банковских дней с момента выставления счета и подписания акта оказанных услуг.</li>
+                <li>Ответственность за сохранность груза в пути застрахована.</li>
+                <li>Указанные цены носят информационный характер. Настоящее КП не является публичной офертой в соответствии со ст. 437 ГК РФ.</li>
+            </ol>
+            
+            <br><br>
+            <p>С уважением,<br>
+            Генеральный директор {profile.company} _______________ / {director_name} /</p>
+        </body>
+        </html>
+        """
+        pisa.CreatePDF(html_content, dest=buffer)
+
+    # --- ГЕНЕРАЦИЯ СМЕТЫ (ПО ВАШЕМУ ПРИМЕРУ) ---
+    elif template == "smeta":
+        html_content = f"""
+        <!DOCTYPE html>
+        <html lang="ru">
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                @page {{ size: A4; margin: 20mm; }}
+                body {{ font-family: Arial, sans-serif; font-size: 10pt; }}
+                .app-header {{ text-align: right; margin-bottom: 20px; }}
+                h1 {{ text-align: center; font-size: 13pt; }}
+                table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
+                th, td {{ border: 1px solid #000; padding: 6px; }}
+                th {{ background: #eaeaea; text-align: center; }}
+                .num {{ text-align: right; }}
                 .bold {{ font-weight: bold; }}
                 .signs {{ width: 100%; margin-top: 40px; }}
-                .signs td {{ width: 50%; vertical-align: top; }}
             </style>
         </head>
         <body>
             <div class="app-header">
                 Приложение № 1<br>
-                к Договору оказания услуг от {date_to_use} г.
+                к Договору оказания услуг № {dogovor_number} от {smeta_date_to_use} г.
             </div>
             
             <h1>СМЕТА НА ОКАЗАНИЕ УСЛУГ</h1>
             
-            <table class="smeta">
-                <thead>
-                    <tr>
-                        <th style="width: 40px;">№</th>
-                        <th>Наименование работ / услуг</th>
-                        <th style="width: 60px;">Ед. изм.</th>
-                        <th style="width: 60px;">Кол-во</th>
-                        <th style="width: 110px;">Цена, руб.</th>
-                        <th style="width: 120px;">Сумма, руб.</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td class="center">1</td>
-                        <td>{service}</td>
-                        <td class="center">усл.</td>
-                        <td class="num">1</td>
-                        <td class="num">{price}</td>
-                        <td class="num">{price}</td>
-                    </tr>
-                    <tr class="bold">
-                        <td colspan="5" class="num">Итого по смете:</td>
-                        <td class="num">{price}</td>
-                    </tr>
-                    <tr class="bold">
-                        <td colspan="5" class="num">Всего к оплате:</td>
-                        <td class="num">{price}</td>
-                    </tr>
-                </tbody>
+            <table>
+                <tr>
+                    <th>№</th>
+                    <th>Наименование работ / услуг</th>
+                    <th>Ед. изм.</th>
+                    <th>Кол-во</th>
+                    <th>Цена, руб.</th>
+                    <th>Сумма, руб.</th>
+                </tr>
+                <tr>
+                    <td style="text-align: center;">1</td>
+                    <td>{service}</td>
+                    <td style="text-align: center;">усл.</td>
+                    <td class="num">1</td>
+                    <td class="num">{price},00</td>
+                    <td class="num">{price},00</td>
+                </tr>
+                <tr class="bold">
+                    <td colspan="5" class="num">Всего к оплате:</td>
+                    <td class="num">{price},00</td>
+                </tr>
             </table>
             
-            <p style="margin-top: 15px;"><strong>Сроки выполнения работ: {term_to_use} дней.</strong></p>
+            <p style="margin-top: 15px;"><strong>Всего наименований 1, на сумму {price} (Сумма прописью) рублей 00 копеек.</strong></p>
             
             <table class="signs">
                 <tr>
-                    <td><strong>Исполнитель:</strong><br><br>________________ / {profile.company} /<br>М.П.</td>
-                    <td><strong>Заказчик:</strong><br><br>________________ / ________________ /<br>М.П.</td>
+                    <td style="border: none; width: 50%;"><strong>Исполнитель:</strong><br><br>________________ / {director_name} /<br>М.П.</td>
+                    <td style="border: none; width: 50%;"><strong>Заказчик:</strong><br><br>________________ / {customer_name} /<br>М.П.</td>
                 </tr>
             </table>
         </body>
         </html>
         """
-        
-        pisa_status = pisa.CreatePDF(html_content, dest=buffer)
-        if pisa_status.err:
-            db.close()
-            return {"status": "error", "message": "Ошибка генерации PDF"}
+        pisa.CreatePDF(html_content, dest=buffer)
 
-    else:
-        # --- REPORTLAB ДЛЯ КП И ДОГОВОРА ---
-        c = canvas.Canvas(buffer, pagesize=A4)
-        width, height = A4
+    # --- ГЕНЕРАЦИЯ ДОГОВОРА (ПО ВАШЕМУ ПРИМЕРУ) ---
+    elif template == "dogovor":
+        # Если клиент не ввел свой текст, используем стандартный
+        if not contract_sections:
+            contract_sections = """
+            1. ПРЕДМЕТ ДОГОВОРА
+            1.1. Исполнитель обязуется по заданию Заказчика оказать услуги: {service}.
+            2. СТОИМОСТЬ УСЛУГ
+            2.1. Общая стоимость Услуг составляет {price} руб.
+            """.format(service=service, price=price)
 
-        # Шапка и логотип
-        if profile.logo_path and os.path.exists(profile.logo_path):
-            try:
-                img = ImageReader(profile.logo_path)
-                c.drawImage(img, 45, height - 95, width=60, height=60, preserveAspectRatio=True, mask='auto')
-            except: pass
-        
-        c.setFillColor(colors.black)
-        c.setFont(FONT_BOLD, 20)
-        c.drawString(120, height - 60, profile.company) 
-        
-        c.setFont(FONT_REGULAR, 9)
-        c.setFillColor(colors.gray)
-        c.drawString(120, height - 80, f"ИНН/КПП: {profile.inn}")
-        c.drawString(120, height - 95, f"Адрес: {profile.address}")
-        c.drawString(120, height - 110, f"Контакты: {profile.contacts}")
-        
-        c.setStrokeColor(colors.black)
-        c.setLineWidth(2)
-        c.line(40, height - 130, width - 40, height - 130)
+        # Преобразуем переносы строк в HTML-теги
+        sections_html = contract_sections.replace('\n', '<br>')
 
-        c.setFont(FONT_REGULAR, 10)
-        c.setFillColor(colors.black)
-        c.drawRightString(width - 50, height - 150, f"Дата: {current_date}")
-
-        if template == "dogovor":
-            # --- ДОГОВОР ---
-            c.setFont(FONT_BOLD, 16)
-            c.drawCentredString(width / 2, height - 190, f"ДОГОВОР ОКАЗАНИЯ УСЛУГ № {dogovor_number}")
+        html_content = f"""
+        <!DOCTYPE html>
+        <html lang="ru">
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                @page {{ size: A4; margin: 20mm; }}
+                body {{ font-family: "Times New Roman", serif; font-size: 11pt; line-height: 1.35; }}
+                .title {{ text-align: center; font-weight: bold; font-size: 14pt; margin-bottom: 20px; }}
+                .meta {{ display: flex; justify-content: space-between; margin-bottom: 20px; }}
+                .signs {{ width: 100%; margin-top: 40px; }}
+                .signs td {{ width: 50%; vertical-align: top; border: none; }}
+            </style>
+        </head>
+        <body>
+            <div class="title">ДОГОВОР ОКАЗАНИЯ УСЛУГ № {dogovor_number}</div>
+            <div class="meta">
+                <span>г. Москва</span>
+                <span>«{date_to_use}» г.</span>
+            </div>
             
-            c.setFont(FONT_REGULAR, 11)
-            c.drawString(60, height - 220, f"г. Москва")
-            c.drawRightString(width - 60, height - 220, f"«{dogovor_date}» г.")
+            <p>{profile.company}, именуемое в дальнейшем «Исполнитель», в лице {director_name}, с одной стороны, и {customer_name} (ИНН: {customer_inn}, адрес: {customer_address}), именуемое в дальнейшем «Заказчик», с другой стороны, заключили настоящий Договор о нижеследующем:</p>
             
-            # Текст договора
-            text_object = c.beginText(60, height - 260)
-            text_object.setFont(FONT_REGULAR, 10)
-            text_object.textLine(f"{profile.company}, именуемое в дальнейшем «Исполнитель», в лице {director_name}, действующего на основании Устава, с одной стороны, и")
-            text_object.textLine(f"{customer_name}, именуемое в дальнейшем «Заказчик», в лице представителя, действующего на основании Устава, с другой стороны, заключили настоящий Договор о нижеследующем:")
-            text_object.textLine("")
-            text_object.textLine("1. ПРЕДМЕТ ДОГОВОРА")
-            text_object.textLine(f"1.1. Исполнитель обязуется оказать услугу: {service}.")
-            text_object.textLine(f"1.2. Стоимость услуг составляет: {price} руб.")
-            text_object.textLine("")
-            text_object.textLine("2. ПОРЯДОК РАСЧЕТОВ")
-            text_object.textLine("2.1. Оплата производится в течение 3 банковских дней с момента подписания Акта.")
-            text_object.textLine("")
-            text_object.textLine("3. ОТВЕТСТВЕННОСТЬ СТОРОН")
-            text_object.textLine("3.1. За нарушение сроков оплаты Заказчик уплачивает неустойку 0,1% за каждый день просрочки.")
-            text_object.textLine("")
-            text_object.textLine("4. ПОДПИСИ СТОРОН")
-            c.drawText(text_object)
-
-            c.setFont(FONT_REGULAR, 11)
-            c.drawString(60, 150, "Исполнитель: _______________________")
-            c.drawRightString(width - 60, 150, "Заказчик: _______________________")
-
-        else:
-            # --- КП ---
-            c.setFont(FONT_BOLD, 16)
-            c.drawCentredString(width / 2, height - 190, "КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ")
+            <div>{sections_html}</div>
             
-            table_top = height - 230
-            c.setFont(FONT_BOLD, 12)
-            c.setFillColor(colors.HexColor("#f0f0f0"))
-            c.rect(50, table_top - 25, width - 100, 25, fill=1, stroke=1)
-            c.setFillColor(colors.black)
-            c.drawString(60, table_top - 17, "Наименование услуги")
-            c.drawString(width - 150, table_top - 17, "Стоимость")
-            
-            c.rect(50, table_top - 80, width - 100, 55, fill=0, stroke=1)
-            c.setFont(FONT_REGULAR, 12)
-            c.drawString(60, table_top - 45, service)
-            c.drawString(width - 150, table_top - 45, price)
+            <br><br>
+            <table class="signs">
+                <tr>
+                    <td>
+                        <strong>ИСПОЛНИТЕЛЬ:</strong><br>
+                        {profile.company}<br>
+                        ИНН: {profile.inn}<br>
+                        Адрес: {profile.address}<br><br>
+                        Генеральный директор<br>
+                        ________________ / {director_name} /<br>
+                        М.П.
+                    </td>
+                    <td>
+                        <strong>ЗАКАЗЧИК:</strong><br>
+                        {customer_name}<br>
+                        ИНН: {customer_inn}<br>
+                        Адрес: {customer_address}<br><br>
+                        Должность<br>
+                        ________________ / ФИО /<br>
+                        М.П.
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
+        """
+        pisa.CreatePDF(html_content, dest=buffer)
 
-            c.setFont(FONT_BOLD, 14)
-            c.drawString(width - 350, table_top - 120, "ИТОГО К ОПЛАТЕ:")
-            c.setFont(FONT_BOLD, 18)
-            c.drawRightString(width - 50, table_top - 120, price)
-
-        c.save()
-    
     buffer.seek(0)
 
     if not has_subscription:
