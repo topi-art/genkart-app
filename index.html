@@ -3,57 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GenDoc</title>
+    <title>Тест</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { background: #121212; color: white; font-family: sans-serif; padding: 20px; }
-        input { width: 100%; padding: 15px; margin-bottom: 10px; border-radius: 10px; border: 1px solid #333; background: #1e1e1e; color: white; box-sizing: border-box; }
-        button { width: 100%; padding: 15px; border-radius: 10px; border: none; background: #ff2a75; color: white; font-weight: bold; font-size: 16px; margin-top: 10px; }
-        h2 { margin-bottom: 15px; }
+        body { background: #121212; color: white; padding: 20px; font-family: sans-serif; text-align: center; }
+        button { padding: 20px; font-size: 18px; width: 100%; background: #ff2a75; color: white; border: none; border-radius: 10px; margin-top: 20px; }
+        #result { margin-top: 20px; color: #bbff00; font-size: 16px; }
     </style>
 </head>
 <body>
-    <h2>Шаг 1: Профиль</h2>
-    <input type="text" id="company" placeholder="Название компании">
-    <input type="text" id="inn" placeholder="ИНН">
-    <input type="text" id="address" placeholder="Адрес">
-    <input type="text" id="contacts" placeholder="Контакты">
-    
-    <button id="saveBtn">Сохранить профиль</button>
+    <h1>Проверка связи</h1>
+    <button id="btn">Нажми меня</button>
+    <div id="result"></div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
         
-        const chatId = tg.initDataUnsafe?.user?.id;
-        if (!chatId) alert("Ошибка: нет ID пользователя");
-
-        document.getElementById('saveBtn').addEventListener('click', async () => {
-            const btn = document.getElementById('saveBtn');
-            btn.textContent = "Сохранение...";
-
-            const formData = new FormData();
-            formData.append('chat_id', chatId);
-            formData.append('company', document.getElementById('company').value);
-            formData.append('inn', document.getElementById('inn').value);
-            formData.append('address', document.getElementById('address').value);
-            formData.append('contacts', document.getElementById('contacts').value);
-
+        document.getElementById('btn').addEventListener('click', async () => {
+            const res = document.getElementById('result');
+            res.textContent = "Отправка запроса...";
+            
             try {
-                const response = await fetch('https://genkart-app.onrender.com/save-profile', {
-                    method: 'POST',
-                    body: formData
-                });
-                if (response.ok) {
-                    alert("Профиль сохранен!");
-                    btn.textContent = "Сохранено!";
-                } else {
-                    alert("Ошибка сервера при сохранении.");
-                    btn.textContent = "Ошибка";
-                }
+                const response = await fetch('https://genkart-app.onrender.com/');
+                const data = await response.json();
+                res.textContent = "✅ Сервер ответил: " + data.message;
             } catch (e) {
-                alert("Ошибка сети.");
-                btn.textContent = "Ошибка сети";
+                res.textContent = "❌ Ошибка сети. Сервер не отвечает.";
             }
         });
     </script>
