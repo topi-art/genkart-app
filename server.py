@@ -23,27 +23,26 @@ app.add_middleware(
 
 BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
 
-# --- АВТОМАТИЧЕСКАЯ ЗАГРУЗКА ШРИФТА ---
-FONT_PATH = "DejaVuSans.ttf"
-FONT_URL = "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans.ttf"
+# --- ПОИСК СИСТЕМНОГО ШРИФТА (БЕЗ ЗАГРУЗКИ) ---
+FONT_NAME = 'Helvetica' # По умолчанию
+# Пути, где Render обычно хранит системные шрифты
+possible_paths = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+    "/usr/share/fonts/dejavu/DejaVuSans.ttf"
+]
 
-if not os.path.exists(FONT_PATH):
-    try:
-        print("Скачиваем шрифт...")
-        r = requests.get(FONT_URL, timeout=30)
-        with open(FONT_PATH, 'wb') as f:
-            f.write(r.content)
-        print("Шрифт успешно скачан!")
-    except Exception as e:
-        print(f"Ошибка скачивания шрифта: {e}")
-
-# Регистрируем шрифт
-try:
-    pdfmetrics.registerFont(TTFont('DejaVuSans', FONT_PATH))
-    FONT_NAME = 'DejaVuSans'
-except Exception as e:
-    print(f"Ошибка регистрации шрифта: {e}")
-    FONT_NAME = 'Helvetica'
+for path in possible_paths:
+    if os.path.exists(path):
+        try:
+            pdfmetrics.registerFont(TTFont('CustomFont', path))
+            FONT_NAME = 'CustomFont'
+            print(f"✅ УСПЕХ: Найден системный шрифт: {path}")
+            break
+        except Exception as e:
+            print(f"Ошибка регистрации {path}: {e}")
+    else:
+        print(f"❌ Шрифт не найден по пути: {path}")
 
 @app.get("/")
 def read_root():
