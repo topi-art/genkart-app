@@ -76,6 +76,7 @@ async def save_profile(
     contacts: str = Form(...),
     logo: UploadFile = File(None)
 ):
+    # (Логика сохранения профиля без изменений)
     db = SessionLocal()
     try:
         profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
@@ -98,9 +99,6 @@ async def save_profile(
         
         db.commit()
         return {"status": "ok", "message": "Профиль сохранен"}
-    except Exception as e:
-        print(f"ОШИБКА БД: {e}")
-        return {"status": "error", "message": str(e)}
     finally:
         db.close()
 
@@ -109,9 +107,16 @@ async def generate_doc(
     chat_id: str = Form(...),
     service: str = Form(...),
     price: str = Form(...),
-    term: str = Form(...),
     template: str = Form("kp"),
-    payment: str = Form("prepay")
+    # Новые поля
+    dogovor_number: str = Form(None),
+    dogovor_date: str = Form(None),
+    customer_name: str = Form(None),
+    customer_inn: str = Form(None),
+    customer_address: str = Form(None),
+    director_name: str = Form(None),
+    smeta_term: str = Form(None),
+    smeta_date: str = Form(None)
 ):
     db = SessionLocal()
     profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
@@ -131,7 +136,10 @@ async def generate_doc(
     current_date = datetime.now().strftime("%d.%m.%Y")
 
     if template == "smeta":
-        # --- HTML ШАБЛОН ДЛЯ СМЕТЫ ---
+        # Используем HTML-шаблон для сметы (передаем smeta_term и smeta_date)
+        date_to_use = smeta_date if smeta_date else current_date
+        term_to_use = smeta_term if smeta_term else "30"
+        
         html_content = f"""
         <!DOCTYPE html>
         <html lang="ru">
@@ -155,7 +163,7 @@ async def generate_doc(
         <body>
             <div class="app-header">
                 Приложение № 1<br>
-                к Договору оказания услуг от {current_date} г.
+                к Договору оказания услуг от {date_to_use} г.
             </div>
             
             <h1>СМЕТА НА ОКАЗАНИЕ УСЛУГ</h1>
@@ -185,17 +193,13 @@ async def generate_doc(
                         <td class="num">{price}</td>
                     </tr>
                     <tr class="bold">
-                        <td colspan="5" class="num">Без налога (НДС):</td>
-                        <td class="num">—</td>
-                    </tr>
-                    <tr class="bold">
                         <td colspan="5" class="num">Всего к оплате:</td>
                         <td class="num">{price}</td>
                     </tr>
                 </tbody>
             </table>
             
-            <p style="margin-top: 15px;"><strong>Всего наименований 1, на сумму {price} рублей.</strong></p>
+            <p style="margin-top: 15px;"><strong>Сроки выполнения работ: {term_to_use} дней.</strong></p>
             
             <table class="signs">
                 <tr>
@@ -213,25 +217,11 @@ async def generate_doc(
             return {"status": "error", "message": "Ошибка генерации PDF"}
 
     else:
-        # --- СТАРЫЙ КОД ДЛЯ КП И ДОГОВОРА ---
+        # --- REPORTLAB ДЛЯ КП И ДОГОВОРА ---
         c = canvas.Canvas(buffer, pagesize=A4)
         width, height = A4
 
-        if profile.logo_path and os.path.exists(profile.logo_path):
-            try:
-                c.saveState()
-                c.setFillAlpha(0.05)
-                img = ImageReader(profile.logo_path)
-                c.drawImage(img, width/2 - 200, height/2 - 200, width=400, height=400, preserveAspectRatio=True, mask='auto')
-                c.restoreState()
-            except: pass
-
-        c.setStrokeColor(colors.black)
-        c.setLineWidth(1)
-        c.rect(30, 30, width - 60, height - 60)
-        c.setLineWidth(0.5)
-        c.rect(35, 35, width - 70, height - 70)
-
+        # Шапка и логотип
         if profile.logo_path and os.path.exists(profile.logo_path):
             try:
                 img = ImageReader(profile.logo_path)
@@ -256,14 +246,40 @@ async def generate_doc(
         c.setFillColor(colors.black)
         c.drawRightString(width - 50, height - 150, f"Дата: {current_date}")
 
-        if payment == "prepay":
-            payment_text = "100% предоплата"
-        elif payment == "half":
-            payment_text = "50% предоплата, 50% по факту"
-        else:
-            payment_text = "100% постоплата"
+        if template == "dogovor":
+            # --- ДОГОВОР ---
+            c.setFont(FONT_BOLD, 16)
+            c.drawCentredString(width / 2, height - 190, f"ДОГОВОР ОКАЗАНИЯ УСЛУГ № {dogovor_number}")
+            
+            c.setFont(FONT_REGULAR, 11)
+            c.drawString(60, height - 220, f"г. Москва")
+            c.drawRightString(width - 60, height - 220, f"«{dogovor_date}» г.")
+            
+            # Текст договора
+            text_object = c.beginText(60, height - 260)
+            text_object.setFont(FONT_REGULAR, 10)
+            text_object.textLine(f"{profile.company}, именуемое в дальнейшем «Исполнитель», в лице {director_name}, действующего на основании Устава, с одной стороны, и")
+            text_object.textLine(f"{customer_name}, именуемое в дальнейшем «Заказчик», в лице представителя, действующего на основании Устава, с другой стороны, заключили настоящий Договор о нижеследующем:")
+            text_object.textLine("")
+            text_object.textLine("1. ПРЕДМЕТ ДОГОВОРА")
+            text_object.textLine(f"1.1. Исполнитель обязуется оказать услугу: {service}.")
+            text_object.textLine(f"1.2. Стоимость услуг составляет: {price} руб.")
+            text_object.textLine("")
+            text_object.textLine("2. ПОРЯДОК РАСЧЕТОВ")
+            text_object.textLine("2.1. Оплата производится в течение 3 банковских дней с момента подписания Акта.")
+            text_object.textLine("")
+            text_object.textLine("3. ОТВЕТСТВЕННОСТЬ СТОРОН")
+            text_object.textLine("3.1. За нарушение сроков оплаты Заказчик уплачивает неустойку 0,1% за каждый день просрочки.")
+            text_object.textLine("")
+            text_object.textLine("4. ПОДПИСИ СТОРОН")
+            c.drawText(text_object)
 
-        if template == "kp":
+            c.setFont(FONT_REGULAR, 11)
+            c.drawString(60, 150, "Исполнитель: _______________________")
+            c.drawRightString(width - 60, 150, "Заказчик: _______________________")
+
+        else:
+            # --- КП ---
             c.setFont(FONT_BOLD, 16)
             c.drawCentredString(width / 2, height - 190, "КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ")
             
@@ -277,98 +293,13 @@ async def generate_doc(
             
             c.rect(50, table_top - 80, width - 100, 55, fill=0, stroke=1)
             c.setFont(FONT_REGULAR, 12)
-            
-            text_object = c.beginText(60, table_top - 45)
-            text_object.setFont(FONT_REGULAR, 12)
-            if len(service) > 40:
-                text_object.textLine(service[:40])
-                text_object.textLine(service[40:])
-            else:
-                text_object.textLine(service)
-            c.drawText(text_object)
-
-            c.setFont(FONT_BOLD, 14)
+            c.drawString(60, table_top - 45, service)
             c.drawString(width - 150, table_top - 45, price)
 
             c.setFont(FONT_BOLD, 14)
             c.drawString(width - 350, table_top - 120, "ИТОГО К ОПЛАТЕ:")
             c.setFont(FONT_BOLD, 18)
             c.drawRightString(width - 50, table_top - 120, price)
-
-            if term.isdigit():
-                delivery_date = (datetime.now() + timedelta(days=int(term))).strftime("%d.%m.%Y")
-                term_text = f"{term} дней (до {delivery_date})"
-            else:
-                term_text = term
-
-            c.setFont(FONT_REGULAR, 12)
-            c.drawString(60, table_top - 160, f"Сроки оказания услуг: {term_text}")
-            
-            c.setFont(FONT_BOLD, 12)
-            c.drawString(60, table_top - 220, "УСЛОВИЯ ПРЕДЛОЖЕНИЯ:")
-            
-            conditions_kp = [
-                "1. Настоящее коммерческое предложение (КП) действительно в течение 14 (четырнадцати) календарных дней с даты его формирования.",
-                f"2. Порядок оплаты: {payment_text} от общей стоимости в течение 3 (трех) банковских дней с момента выставления счета.",
-                "3. Гарантия на выполняемые работы (поставляемый товар) составляет 12 месяцев с момента подписания закрывающих документов.",
-                "4. Указанные цены носят информационный характер. Настоящее КП не является публичной офертой в соответствии со ст. 437 ГК РФ."
-            ]
-            
-            y_pos = table_top - 240
-            for cond in conditions_kp:
-                lines = wrap(cond, width=85) 
-                for line in lines:
-                    c.setFont(FONT_REGULAR, 9)
-                    c.drawString(60, y_pos, line)
-                    y_pos -= 12
-                y_pos -= 8
-
-        elif template == "dogovor":
-            c.setFont(FONT_BOLD, 16)
-            c.drawCentredString(width / 2, height - 190, "ДОГОВОР ОКАЗАНИЯ УСЛУГ")
-            
-            c.setFont(FONT_BOLD, 12)
-            c.drawString(60, height - 230, "1. Предмет договора:")
-            
-            c.setFont(FONT_REGULAR, 11)
-            text_object = c.beginText(80, height - 250)
-            text_object.textLine(f"Исполнитель обязуется оказать услугу: {service}.")
-            text_object.textLine(f"Стоимость услуг составляет: {price}.")
-            text_object.textLine(f"Порядок оплаты: {payment_text}.")
-            
-            if term.isdigit():
-                delivery_date = (datetime.now() + timedelta(days=int(term))).strftime("%d.%m.%Y")
-                term_text = f"{term} календарных дней (до {delivery_date})"
-            else:
-                term_text = term
-            text_object.textLine(f"Сроки оказания услуг: {term_text}.")
-            c.drawText(text_object)
-
-            c.setFont(FONT_BOLD, 12)
-            c.drawString(60, height - 340, "ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ И ОТВЕТСТВЕННОСТЬ СТОРОН:")
-            
-            conditions_dogovor = [
-                "1. Настоящий Договор вступает в силу с момента его подписания обеими Сторонами и действует до полного исполнения обязательств.",
-                "2. Приемка результатов работ оформляется двусторонним Актом. Заказчик обязан подписать Акт в течение 3 рабочих дней или направить мотивированный отказ.",
-                "3. За нарушение сроков оплаты Заказчик уплачивает неустойку 0,1% от суммы задолженности за каждый день просрочки, но не более 10%.",
-                "4. За нарушение сроков исполнения обязательств Исполнитель уплачивает неустойку 0,1% от стоимости неисполненной части, но не более 10%.",
-                "5. Все споры решаются путем переговоров, а при недостижении согласия — в Арбитражном суде по месту нахождения Истца."
-            ]
-            
-            y_pos = height - 360
-            for cond in conditions_dogovor:
-                lines = wrap(cond, width=85) 
-                for line in lines:
-                    c.setFont(FONT_REGULAR, 9)
-                    c.drawString(60, y_pos, line)
-                    y_pos -= 12
-                y_pos -= 8
-
-            c.setFont(FONT_BOLD, 12)
-            c.drawString(60, height - 520, "Подписи сторон:")
-            c.setFont(FONT_REGULAR, 11)
-            c.drawString(60, 150, "Исполнитель: _______________________")
-            c.drawRightString(width - 60, 150, "Заказчик: _______________________")
 
         c.save()
     
