@@ -42,7 +42,9 @@
     <div id="profileSection" class="step-card">
         <div class="step-header"><div class="step-number">1</div>Профиль</div>
         
-        <input type="text" id="companyInput" class="input-text" placeholder="Название компании">
+        <input type="text" id="companyInput" class="input-text" placeholder="Название компании (ООО, ИП)">
+        <input type="text" id="innInput" class="input-text" placeholder="ИНН / КПП">
+        <input type="text" id="addressInput" class="input-text" placeholder="Юридический адрес">
         <input type="text" id="contactInput" class="input-text" placeholder="Контакты (телефон, сайт)">
         
         <div class="upload-zone" id="uploadZone">
@@ -102,7 +104,13 @@
             }
         });
 
-        const profileInputs = [document.getElementById('companyInput'), document.getElementById('contactInput')];
+        const profileInputs = [
+            document.getElementById('companyInput'), 
+            document.getElementById('innInput'),
+            document.getElementById('addressInput'),
+            document.getElementById('contactInput')
+        ];
+        
         profileInputs.forEach(input => {
             input.addEventListener('input', () => {
                 const allFilled = profileInputs.every(i => i.value.trim() !== '');
@@ -117,6 +125,8 @@
             const formData = new FormData();
             formData.append('chat_id', chatId);
             formData.append('company', document.getElementById('companyInput').value);
+            formData.append('inn', document.getElementById('innInput').value);
+            formData.append('address', document.getElementById('addressInput').value);
             formData.append('contacts', document.getElementById('contactInput').value);
             if (currentFile) formData.append('logo', currentFile);
 
@@ -126,9 +136,12 @@
                     document.getElementById('profileSection').style.display = 'none';
                     document.getElementById('generateSection').style.display = 'block';
                     checkGenerateBtn();
+                } else {
+                    tg.showAlert("Ошибка сервера при сохранении.");
+                    btn.disabled = false; btn.textContent = "Сохранить профиль";
                 }
             } catch (e) {
-                tg.showAlert("Ошибка сети");
+                tg.showAlert("Ошибка сети.");
                 btn.disabled = false; btn.textContent = "Сохранить профиль";
             }
         });
@@ -156,10 +169,10 @@
                 if (response.ok) {
                     tg.showAlert("Документ отправлен в чат!");
                 } else {
-                    tg.showAlert("Ошибка на сервере");
+                    tg.showAlert("Ошибка на сервере.");
                 }
             } catch (e) {
-                tg.showAlert("Ошибка сети");
+                tg.showAlert("Ошибка сети.");
             } finally {
                 btn.disabled = false; btn.textContent = "Создать документ 📄";
             }
