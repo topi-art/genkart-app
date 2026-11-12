@@ -6,56 +6,138 @@
     <title>GenDoc</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { background: #121212; color: white; font-family: sans-serif; padding: 16px; }
-        input { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #333; background: #1e1e1e; color: white; box-sizing: border-box; }
-        button { width: 100%; padding: 16px; border-radius: 12px; border: none; background: #ff2a75; color: white; font-weight: bold; font-size: 16px; cursor: pointer; }
-        #result { margin-top: 20px; color: #bbff00; font-size: 16px; text-align: center; }
+        body { background: #121212; color: white; font-family: sans-serif; padding: 16px; padding-bottom: 50px; }
+        input, select { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #333; background: #1e1e1e; color: white; box-sizing: border-box; }
+        button { width: 100%; padding: 16px; border-radius: 12px; border: none; background: #ff2a75; color: white; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        .card { background: #1e1e1e; padding: 16px; border-radius: 12px; margin-bottom: 16px; }
+        .row { display: flex; gap: 5px; margin-bottom: 5px; }
+        .row input { margin-bottom: 0; }
+        .row .name { flex: 2; }
+        .row .qty { flex: 1; }
+        .row .price { flex: 1; }
+        .btn-del { background: #d32f2f; width: 40px; padding: 0; flex: 0; }
     </style>
 </head>
 <body>
     <h2>Профиль</h2>
-    <input type="text" id="company" placeholder="Название компании" value="ООО Тест">
-    <input type="text" id="inn" placeholder="ИНН" value="1234567890">
-    <input type="text" id="address" placeholder="Адрес" value="г. Москва">
-    <input type="text" id="contacts" placeholder="Контакты" value="+7 999 999-99-99">
-    
-    <button id="saveBtn">Сохранить профиль</button>
-    
-    <div id="result"></div>
+    <div class="card">
+        <input type="text" id="company" placeholder="Название компании" value="ООО Тест">
+        <input type="text" id="inn" placeholder="ИНН" value="1234567890">
+        <input type="text" id="address" placeholder="Адрес" value="г. Москва">
+        <input type="text" id="contacts" placeholder="Контакты" value="+7 999 999-99-99">
+        <button id="saveBtn" style="background: #444;">Сохранить профиль</button>
+    </div>
+
+    <h2>Документ</h2>
+    <div class="card">
+        <select id="template">
+            <option value="kp">Коммерческое предложение</option>
+            <option value="smeta">Смета</option>
+            <option value="dogovor">Договор</option>
+        </select>
+
+        <div id="services">
+            <div class="row">
+                <input type="text" class="name" placeholder="Услуга" value="Тестовая услуга">
+                <input type="number" class="qty" placeholder="Кол-во" value="1">
+                <input type="number" class="price" placeholder="Цена" value="10000">
+                <button class="btn-del" onclick="this.parentElement.remove()">X</button>
+            </div>
+        </div>
+        <button style="background: #444;" onclick="addRow()">+ Добавить услугу</button>
+
+        <div id="fields-dogovor" style="display:none; margin-top: 10px;">
+            <input type="text" id="dogovor_number" placeholder="Номер договора" value="15/26">
+            <input type="text" id="dogovor_date" placeholder="Дата договора" value="12.11.2026">
+            <input type="text" id="customer_name" placeholder="Заказчик" value="ООО Заказчик">
+            <input type="text" id="customer_inn" placeholder="ИНН Заказчика" value="0987654321">
+            <input type="text" id="customer_address" placeholder="Адрес Заказчика" value="г. Москва">
+            <input type="text" id="director_name" placeholder="ФИО Директора" value="Иванов И.И.">
+        </div>
+        
+        <div id="fields-smeta" style="display:none; margin-top: 10px;">
+            <input type="text" id="smeta_number" placeholder="Номер договора" value="15/26">
+            <input type="text" id="smeta_date" placeholder="Дата сметы" value="12.11.2026">
+        </div>
+
+        <button id="genBtn" onclick="generate()">Скачать PDF</button>
+    </div>
 
     <script>
         const tg = window.Telegram.WebApp; tg.expand();
-        const chatId = tg.initDataUnsafe?.user?.id;
-        const result = document.getElementById('result');
+        
+        document.getElementById('template').addEventListener('change', (e) => {
+            document.getElementById('fields-dogovor').style.display = e.target.value === 'dogovor' ? 'block' : 'none';
+            document.getElementById('fields-smeta').style.display = e.target.value === 'smeta' ? 'block' : 'none';
+        });
 
-        document.getElementById('saveBtn').addEventListener('click', async () => {
-            result.textContent = "Отправка...";
-            
+        function addRow() {
+            const div = document.createElement('div');
+            div.className = 'row';
+            div.innerHTML = `<input type="text" class="name" placeholder="Услуга"><input type="number" class="qty" placeholder="Кол-во" value="1"><input type="number" class="price" placeholder="Цена"><button class="btn-del" onclick="this.parentElement.remove()">X</button>`;
+            document.getElementById('services').appendChild(div);
+        }
+
+        // Кнопка "Сохранить профиль" (пока просто выводит сообщение)
+        document.getElementById('saveBtn').addEventListener('click', () => {
+            tg.showAlert("Профиль сохранен (демо-режим)!");
+        });
+
+        // Кнопка "Скачать PDF" (отправляет запрос на сервер)
+        async function generate() {
+            const btn = document.getElementById('genBtn');
+            btn.textContent = "Генерация...";
+
+            const rows = document.querySelectorAll('.row');
+            const services = [];
+            rows.forEach(r => {
+                const name = r.querySelector('.name').value;
+                const qty = r.querySelector('.qty').value;
+                const price = r.querySelector('.price').value;
+                if (name && price) services.push({ name, qty, price });
+            });
+
             const formData = new FormData();
-            formData.append('chat_id', chatId);
+            formData.append('template', document.getElementById('template').value);
             formData.append('company', document.getElementById('company').value);
             formData.append('inn', document.getElementById('inn').value);
             formData.append('address', document.getElementById('address').value);
             formData.append('contacts', document.getElementById('contacts').value);
+            formData.append('services_json', JSON.stringify(services));
+            formData.append('term', '30');
+
+            if (document.getElementById('fields-dogovor').style.display === 'block') {
+                formData.append('dogovor_number', document.getElementById('dogovor_number').value);
+                formData.append('dogovor_date', document.getElementById('dogovor_date').value);
+                formData.append('customer_name', document.getElementById('customer_name').value);
+                formData.append('customer_inn', document.getElementById('customer_inn').value);
+                formData.append('customer_address', document.getElementById('customer_address').value);
+                formData.append('director_name', document.getElementById('director_name').value);
+            }
+            if (document.getElementById('fields-smeta').style.display === 'block') {
+                formData.append('dogovor_number', document.getElementById('smeta_number').value);
+                formData.append('smeta_date', document.getElementById('smeta_date').value);
+            }
 
             try {
-                const response = await fetch('https://genkart-app.onrender.com/save-profile', {
+                const response = await fetch('https://genkart-app.onrender.com/generate-doc', {
                     method: 'POST',
                     body: formData
                 });
-                
-                const data = await response.json();
-                
                 if (response.ok) {
-                    result.textContent = "✅ Успех! " + data.message;
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    tg.openLink(url);
+                    tg.showAlert("Документ готов! Нажмите на него, чтобы сохранить.");
                 } else {
-                    result.textContent = "❌ Ошибка сервера: " + (data.message || 'Неизвестно');
+                    tg.showAlert("Ошибка сервера.");
                 }
             } catch (e) {
-                result.textContent = "❌ Ошибка сети: сервер не отвечает.";
+                tg.showAlert("Ошибка сети.");
+            } finally {
+                btn.textContent = "Скачать PDF";
             }
-        });
+        }
     </script>
 </body>
 </html>
-
