@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ГенКарт</title>
+    <title>ГенКарт | Документы</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root { --bg: #121212; --card: #1e1e1e; --text: #ffffff; --muted: #888888; --accent: #ff2a75; --accent-txt: #ffffff; }
@@ -17,152 +17,55 @@
         .step-header { display: flex; align-items: center; margin-bottom: 16px; font-size: 16px; font-weight: 600; }
         .step-number { background: #333; color: var(--muted); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; margin-right: 10px; }
         
-        .upload-zone { border: 1.5px dashed #444; border-radius: 12px; padding: 30px 20px; text-align: center; cursor: pointer; position: relative; overflow: hidden; }
-        .preview-img { display: none; width: 100%; height: 200px; object-fit: contain; border-radius: 8px; transition: filter 0.4s ease; }
-        
-        .loading-shimmer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent); background-size: 200% 100%; animation: shimmer 1.5s infinite; display: none; }
-        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-        .preview-img.is-loading { filter: blur(5px) grayscale(50%); }
-        .preview-img.is-loading + .loading-shimmer { display: block; }
+        .upload-zone { border: 1.5px dashed #444; border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; position: relative; overflow: hidden; margin-bottom: 10px; }
+        .preview-img { display: none; max-width: 100%; height: 80px; object-fit: contain; border-radius: 8px; margin: 0 auto; }
         
         .input-text { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #333; background: #121212; color: white; margin-bottom: 10px; font-size: 14px; }
         .input-text::placeholder { color: #555; }
-        textarea.input-text { min-height: 80px; resize: vertical; }
         
-        .select-group { display: flex; gap: 10px; margin-bottom: 15px; }
-        .select-box { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #121212; color: white; font-size: 14px; }
-
-        /* ГОРИЗОНТАЛЬНАЯ ПРОКРУТКА */
-        .bg-scroll {
-            display: flex;
-            gap: 10px;
-            overflow-x: auto;
-            padding-bottom: 10px;
-            margin-bottom: 15px;
-            scrollbar-width: none; 
-        }
-        .bg-scroll::-webkit-scrollbar { display: none; } 
-        
-        .bg-btn, .tpl-btn, .size-btn, .rot-btn { 
-            padding: 10px; 
-            background: #121212; 
-            color: var(--muted); 
-            border: 1px solid #333; 
-            border-radius: 8px; 
-            cursor: pointer; 
-            font-weight: 600; 
-            font-size: 12px; 
-            text-align: center; 
-            white-space: nowrap; 
-        }
-        .bg-btn { min-width: 110px; } 
-        
-        .bg-btn.active, .tpl-btn.active, .size-btn.active, .rot-btn.active { 
-            background: #2a2a2a; 
-            color: var(--accent); 
-            border-color: var(--accent); 
-        }
-
-        .templates, .sizes, .rotations { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
-        .tpl-btn, .size-btn, .rot-btn { flex: 1; min-width: 30%; }
+        .templates { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .tpl-btn { flex: 1; min-width: 45%; padding: 12px; background: #121212; color: var(--muted); border: 1px solid #333; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; text-align: center; }
+        .tpl-btn.active { background: #2a2a2a; color: var(--accent); border-color: var(--accent); }
 
         .btn-generate { background: var(--accent); color: var(--accent-txt); border: none; width: 100%; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 10px; }
-        .btn-video { background: #333; color: white; border: none; width: 100%; padding: 14px; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; }
-        
-        .result-img { display: none; width: 100%; border-radius: 12px; margin-top: 10px; }
-        .btn-download { display: none; background: #333; color: white; border: none; width: 100%; padding: 14px; border-radius: 10px; font-size: 14px; font-weight: 600; margin-top: 10px; cursor: pointer; text-align: center; text-decoration: none; }
         
         .status-text { font-size: 13px; color: var(--accent); text-align: center; margin-top: 10px; display: none; }
         input[type="file"] { display: none; }
     </style>
 </head>
 <body>
-    <div class="header"><div class="logo">Gen<span>Kart</span></div></div>
+    <div class="header"><div class="logo">Gen<span>Doc</span></div></div>
 
     <div class="step-card">
-        <div class="step-header"><div class="step-number">1</div>Ваш товар</div>
+        <div class="step-header"><div class="step-number">1</div>Ваш логотип</div>
         <div class="upload-zone" id="uploadZone">
-            <div class="upload-icon" id="uploadIcon" style="font-size: 32px; margin-bottom: 10px;">📦</div>
-            <div id="uploadText" style="color: var(--muted); font-size: 14px;">Добавьте фото товара</div>
+            <div id="uploadIcon" style="font-size: 24px; margin-bottom: 5px;">🖼️</div>
+            <div id="uploadText" style="color: var(--muted); font-size: 13px;">Загрузите логотип (PNG)</div>
             <img id="previewImg" class="preview-img">
-            <div class="loading-shimmer"></div>
         </div>
-        <input type="file" id="fileInput" accept="image/*">
+        <input type="file" id="fileInput" accept="image/png">
     </div>
 
     <div class="step-card">
-        <div class="step-header"><div class="step-number">2</div>Настройте генерацию</div>
+        <div class="step-header"><div class="step-number">2</div>Данные для документа</div>
         
-        <input type="text" id="titleInput" class="input-text" placeholder="Заголовок (например: CELIMAX)">
-        <input type="text" id="subtitleInput" class="input-text" placeholder="Подзаголовок (например: Молочный тонер)">
-        <textarea id="featuresInput" class="input-text" placeholder="Преимущества (каждое с новой строки):
-1. Увлажняет
-2. Защищает
-3. Восстанавливает"></textarea>
+        <input type="text" id="companyInput" class="input-text" placeholder="Название вашей компании">
+        <input type="text" id="serviceInput" class="input-text" placeholder="Что вы предлагаете (услуга)">
+        <input type="text" id="priceInput" class="input-text" placeholder="Цена (например: 50 000 руб.)">
+        <input type="text" id="termInput" class="input-text" placeholder="Сроки (например: 14 дней)">
+        <input type="text" id="contactInput" class="input-text" placeholder="Контакты (телефон, сайт, @username)">
         
-        <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">Расположение текста:</div>
+        <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px; margin-top: 15px;">Стиль документа:</div>
         <div class="templates">
-            <button class="tpl-btn active" onclick="setTemplate('template1', this)">Сверху</button>
-            <button class="tpl-btn" onclick="setTemplate('template2', this)">Слева</button>
-            <button class="tpl-btn" onclick="setTemplate('template3', this)">Справа</button>
-            <button class="tpl-btn" onclick="setTemplate('template4', this)">Инфографика</button>
-        </div>
-        
-        <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">Размер товара:</div>
-        <div class="sizes">
-            <button class="size-btn" onclick="setSize('small', this)">Маленький</button>
-            <button class="size-btn active" onclick="setSize('medium', this)">Средний</button>
-            <button class="size-btn" onclick="setSize('large', this)">Большой</button>
-        </div>
-
-        <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">Поворот товара:</div>
-        <div class="rotations">
-            <button class="rot-btn active" onclick="setRotation('none', this)">Ровно</button>
-            <button class="rot-btn" onclick="setRotation('left', this)">Влево</button>
-            <button class="rot-btn" onclick="setRotation('right', this)">Вправо</button>
-        </div>
-
-        <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">Фон (подиум):</div>
-        <!-- НОВАЯ ЛЕНТА С НАЗВАНИЯМИ -->
-        <div class="bg-scroll">
-            <button class="bg-btn active" onclick="setBg('bg1', this)">Белые облака</button>
-            <button class="bg-btn" onclick="setBg('bg2', this)">Лента</button>
-            <button class="bg-btn" onclick="setBg('bg3', this)">Травертин</button>
-            <button class="bg-btn" onclick="setBg('bg4', this)">Бордовая ткань</button>
-            <button class="bg-btn" onclick="setBg('bg5', this)">Жидкое стекло</button>
-            <button class="bg-btn" onclick="setBg('bg6', this)">Пузыри</button>
-            <button class="bg-btn" onclick="setBg('bg7', this)">Розовые облака</button>
-            <button class="bg-btn" onclick="setBg('bg8', this)">Скалы</button>
-            <button class="bg-btn" onclick="setBg('bg9', this)">Розовая ткань</button>
-            <button class="bg-btn" onclick="setBg('bg10', this)">Оливковый подиум</button>
-        </div>
-
-        <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">Шрифт и размер:</div>
-        <div class="select-group">
-            <select id="fontSelect" class="select-box">
-                <option value="sans">Без засечек</option>
-                <option value="serif">С засечками</option>
-            </select>
-            <select id="sizeSelect" class="select-box">
-                <option value="small">Мелкий</option>
-                <option value="normal" selected>Средний</option>
-                <option value="large">Крупный</option>
-            </select>
+            <button class="tpl-btn active" onclick="setTemplate('template1', this)">Строгий (Бизнес)</button>
+            <button class="tpl-btn" onclick="setTemplate('template2', this)">Современный (IT/Маркетинг)</button>
+            <button class="tpl-btn" onclick="setTemplate('template3', this)">Смета (Строительство)</button>
         </div>
 
         <button class="btn-generate" id="btnGenerate" disabled>
-            Сгенерировать карточку <span>✨ 1</span>
-        </button>
-        <button class="btn-video" id="btnVideo" disabled>
-            🎬 Сделать видео (GIF)
+            Сгенерировать документ 📄
         </button>
         <div class="status-text" id="statusText"></div>
-    </div>
-
-    <div class="step-card" id="resultsCard" style="display: none;">
-        <div class="step-header"><div class="step-number">3</div>Результаты</div>
-        <img id="resultImg" class="result-img">
-        <a id="btnDownload" class="btn-download" href="#">📥 Скачать</a>
     </div>
 
     <script>
@@ -170,36 +73,13 @@
         
         const uploadZone = document.getElementById('uploadZone'), fileInput = document.getElementById('fileInput');
         const previewImg = document.getElementById('previewImg'), btnGenerate = document.getElementById('btnGenerate');
-        const btnVideo = document.getElementById('btnVideo');
-        const resultsCard = document.getElementById('resultsCard'), resultImg = document.getElementById('resultImg');
-        const statusText = document.getElementById('statusText'), btnDownload = document.getElementById('btnDownload');
+        const statusText = document.getElementById('statusText');
         let currentFile = null;
-        let currentBg = 'bg1';
         let currentTemplate = 'template1';
-        let currentSize = 'medium';
-        let currentRotation = 'none';
-
-        function setBg(bg, btn) {
-            currentBg = bg;
-            document.querySelectorAll('.bg-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-        }
 
         function setTemplate(tpl, btn) {
             currentTemplate = tpl;
             document.querySelectorAll('.tpl-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-        }
-        
-        function setSize(size, btn) {
-            currentSize = size;
-            document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-        }
-
-        function setRotation(rot, btn) {
-            currentRotation = rot;
-            document.querySelectorAll('.rot-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
         }
 
@@ -212,82 +92,57 @@
                     previewImg.src = ev.target.result; previewImg.style.display = 'block';
                     document.getElementById('uploadIcon').style.display = 'none';
                     document.getElementById('uploadText').style.display = 'none';
-                    btnGenerate.disabled = false;
-                    btnVideo.disabled = false;
                 };
                 reader.readAsDataURL(currentFile);
             }
         });
 
-        async function sendRequest(isVideo = false) {
-            if (!currentFile) return;
-            
-            previewImg.classList.add('is-loading');
-            btnGenerate.disabled = true; 
-            btnVideo.disabled = true;
+        // Проверка заполнения полей
+        const inputs = document.querySelectorAll('.input-text');
+        inputs.forEach(input => {
+            input.addEventListener('input', () => {
+                const allFilled = Array.from(inputs).every(i => i.value.trim() !== '');
+                btnGenerate.disabled = !allFilled;
+            });
+        });
+
+        btnGenerate.addEventListener('click', async () => {
+            btnGenerate.disabled = true;
+            btnGenerate.innerHTML = "Создаем PDF... ⏳";
             statusText.style.display = 'block';
-            statusText.textContent = isVideo ? "Создаем анимацию..." : "Генерация...";
+            statusText.textContent = "Пожалуйста, подождите...";
 
             const formData = new FormData();
-            formData.append('file', currentFile);
-            formData.append('title', document.getElementById('titleInput').value || "Название");
-            formData.append('subtitle', document.getElementById('subtitleInput').value || "Описание");
-            formData.append('features', document.getElementById('featuresInput').value || "");
-            formData.append('background', currentBg);
+            if (currentFile) formData.append('logo', currentFile);
+            formData.append('company', document.getElementById('companyInput').value);
+            formData.append('service', document.getElementById('serviceInput').value);
+            formData.append('price', document.getElementById('priceInput').value);
+            formData.append('term', document.getElementById('termInput').value);
+            formData.append('contacts', document.getElementById('contactInput').value);
             formData.append('template', currentTemplate);
-            formData.append('size', currentSize);
-            formData.append('rotation', currentRotation);
-            formData.append('is_video', isVideo ? 'true' : 'false');
-            
-            formData.append('font_style', document.getElementById('fontSelect').value);
-            formData.append('font_size', document.getElementById('sizeSelect').value);
             
             if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
                 formData.append('chat_id', tg.initDataUnsafe.user.id);
             }
 
             try {
-                const response = await fetch('https://genkart-app.onrender.com/generate-card', {
+                const response = await fetch('https://genkart-app.onrender.com/generate-doc', {
                     method: 'POST',
                     body: formData
                 });
 
                 if (response.ok) {
-                    const blob = await response.blob();
-                    const url = URL.createObjectURL(blob);
-                    
-                    resultImg.src = url; 
-                    resultImg.style.display = 'block';
-                    btnDownload.href = url;
-                    btnDownload.style.display = 'block';
-                    resultsCard.style.display = 'block';
-                    
-                    setTimeout(() => {
-                        resultsCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }, 100);
-
-                    statusText.textContent = "Готово! Отправлено в чат.";
+                    statusText.textContent = "Готово! Документ отправлен в чат.";
+                    tg.showAlert("Документ отправлен в чат с ботом! Закройте приложение и проверьте сообщения.");
                 } else {
                     tg.showAlert("Ошибка на сервере.");
                 }
             } catch (error) {
                 tg.showAlert("Ошибка сети.");
             } finally {
-                previewImg.classList.remove('is-loading');
-                btnGenerate.disabled = false; 
-                btnVideo.disabled = false;
-                btnGenerate.innerHTML = "Сгенерировать заново";
-                btnGenerate.style.background = "#333"; 
-                btnGenerate.style.color = "#fff";
+                btnGenerate.disabled = false;
+                btnGenerate.innerHTML = "Сгенерировать документ 📄";
             }
-        }
-
-        btnGenerate.addEventListener('click', () => sendRequest(false));
-        btnVideo.addEventListener('click', () => sendRequest(true));
-
-        btnDownload.addEventListener('click', (e) => {
-            e.preventDefault();
-            tg.showAlert("Файл уже в чате! Проверьте сообщения.");
         });
     </script>
 </body>
