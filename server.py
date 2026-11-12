@@ -44,11 +44,16 @@ class Profile(Base):
 
 Base.metadata.create_all(bind=engine)
 
+# --- ПОИСК КРАСИВЫХ ШРИФТОВ (С ЗАСЕЧКАМИ И БЕЗ) ---
 FONT_REGULAR = 'Helvetica'
 FONT_BOLD = 'Helvetica-Bold'
 possible_paths = [
+    # Шрифты без засечек (для заголовков)
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+    # Шрифты с засечками (для текста, как Times New Roman)
+    "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"
 ]
 for path in possible_paths:
     if os.path.exists(path):
@@ -226,7 +231,7 @@ async def generate_doc(
         
         y_pos = table_top - 240
         for cond in conditions_kp:
-            lines = wrap(cond, width=85) # Уменьшили ширину для гарантии
+            lines = wrap(cond, width=85) 
             for line in lines:
                 c.setFont(FONT_REGULAR, 9)
                 c.drawString(60, y_pos, line)
@@ -281,7 +286,7 @@ async def generate_doc(
         
         y_pos = table_top - 240
         for cond in conditions_smeta:
-            lines = wrap(cond, width=85) # Уменьшили ширину
+            lines = wrap(cond, width=85) 
             for line in lines:
                 c.setFont(FONT_REGULAR, 9)
                 c.drawString(60, y_pos, line)
@@ -323,7 +328,7 @@ async def generate_doc(
         
         y_pos = height - 360
         for cond in conditions_dogovor:
-            lines = wrap(cond, width=85) # Уменьшили ширину
+            lines = wrap(cond, width=85) 
             for line in lines:
                 c.setFont(FONT_REGULAR, 9)
                 c.drawString(60, y_pos, line)
@@ -331,7 +336,7 @@ async def generate_doc(
             y_pos -= 8
 
         c.setFont(FONT_BOLD, 12)
-        c.drawString(60, height - 500, "Подписи сторон:")
+        c.drawString(60, height - 520, "Подписи сторон:")
         c.setFont(FONT_REGULAR, 11)
         c.drawString(60, 150, "Исполнитель: _______________________")
         c.drawRightString(width - 60, 150, "Заказчик: _______________________")
