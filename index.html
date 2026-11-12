@@ -57,6 +57,7 @@
         <input type="text" id="priceInput" class="input-text" placeholder="Цена (руб.)" value="10000">
         <input type="text" id="termInput" class="input-text" placeholder="Сроки (дней)" value="30">
 
+        <!-- ПОЛЯ ДЛЯ ДОГОВОРА -->
         <div id="dogovorFields" class="dynamic-fields">
             <input type="text" id="dogovorNumber" class="input-text" placeholder="Номер договора" value="15/26">
             <input type="text" id="dogovorDate" class="input-text" placeholder="Дата договора" value="12.11.2026">
@@ -67,9 +68,12 @@
             <input type="text" id="customerDirector" class="input-text" placeholder="ФИО представителя Заказчика" value="Петров П.П.">
         </div>
 
+        <!-- ПОЛЯ ДЛЯ СМЕТЫ (Добавлены данные Заказчика) -->
         <div id="smetaFields" class="dynamic-fields">
             <input type="text" id="smetaNumber" class="input-text" placeholder="Номер договора" value="15/26">
             <input type="text" id="smetaDate" class="input-text" placeholder="Дата сметы" value="12.11.2026">
+            <input type="text" id="smetaCustomerName" class="input-text" placeholder="Наименование Заказчика" value="ООО Заказчик">
+            <input type="text" id="smetaCustomerDirector" class="input-text" placeholder="ФИО представителя Заказчика" value="Петров П.П.">
         </div>
         
         <button class="btn-generate" id="btnGenerateDoc">Создать документ 📄</button>
@@ -164,8 +168,8 @@
             if (currentTemplate === 'smeta') {
                 fd.append('dogovor_number', document.getElementById('smetaNumber').value);
                 fd.append('smeta_date', document.getElementById('smetaDate').value);
-                fd.append('customer_name', document.getElementById('customerName').value);
-                fd.append('customer_director', document.getElementById('customerDirector').value);
+                fd.append('customer_name', document.getElementById('smetaCustomerName').value);
+                fd.append('customer_director', document.getElementById('smetaCustomerDirector').value);
             }
 
             try {
