@@ -226,7 +226,7 @@ async def generate_doc(
         
         y_pos = table_top - 240
         for cond in conditions_kp:
-            lines = wrap(cond, width=100)
+            lines = wrap(cond, width=85) # Уменьшили ширину для гарантии
             for line in lines:
                 c.setFont(FONT_REGULAR, 9)
                 c.drawString(60, y_pos, line)
@@ -281,7 +281,7 @@ async def generate_doc(
         
         y_pos = table_top - 240
         for cond in conditions_smeta:
-            lines = wrap(cond, width=100)
+            lines = wrap(cond, width=85) # Уменьшили ширину
             for line in lines:
                 c.setFont(FONT_REGULAR, 9)
                 c.drawString(60, y_pos, line)
@@ -323,7 +323,7 @@ async def generate_doc(
         
         y_pos = height - 360
         for cond in conditions_dogovor:
-            lines = wrap(cond, width=100)
+            lines = wrap(cond, width=85) # Уменьшили ширину
             for line in lines:
                 c.setFont(FONT_REGULAR, 9)
                 c.drawString(60, y_pos, line)
