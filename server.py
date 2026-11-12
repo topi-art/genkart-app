@@ -5,7 +5,7 @@ import io
 import requests
 import os
 from datetime import datetime
-from sqlalchemy import create_engine, Column, String, Integer, DateTime, Text
+from sqlalchemy import create_engine, Column, String, Integer, DateTime
 from sqlalchemy.orm import declarative_base, sessionmaker
 from xhtml2pdf import pisa
 
@@ -21,7 +21,8 @@ app.add_middleware(
 
 BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
 
-DATABASE_URL = "sqlite:///./profiles_v5.db"
+# СБРОС БАЗЫ ДАННЫХ (создастся новый файл profiles_v6.db)
+DATABASE_URL = "sqlite:///./profiles_v6.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -75,6 +76,9 @@ async def save_profile(
         
         db.commit()
         return {"status": "ok", "message": "Профиль сохранен"}
+    except Exception as e:
+        print(f"ОШИБКА БД: {e}")
+        return {"status": "error", "message": str(e)}
     finally:
         db.close()
 
@@ -112,7 +116,6 @@ async def generate_doc(
     date_to_use = dogovor_date if dogovor_date else current_date
     smeta_date_to_use = smeta_date if smeta_date else current_date
 
-    # --- ГЕНЕРАЦИЯ КП (ПО ВАШЕМУ ПРИМЕРУ) ---
     if template == "kp":
         html_content = f"""
         <!DOCTYPE html>
@@ -138,31 +141,15 @@ async def generate_doc(
                 Адрес: {profile.address}<br>
                 Тел.: {profile.contacts}
             </div>
-            
             <div style="text-align: right;">Исх. № ___ от {current_date} г.</div>
-            
             <div class="title">КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ<br>на оказание услуг</div>
-            
             <p>Уважаемый(ая) [Имя Отчество клиента]!</p>
             <p>Компания {profile.company} предлагает вам услуги: <strong>{service}</strong> на следующих условиях:</p>
-            
             <table>
-                <tr>
-                    <th>№</th>
-                    <th>Наименование услуги</th>
-                    <th>Срок выполнения</th>
-                    <th>Стоимость, руб.</th>
-                </tr>
-                <tr>
-                    <td>1</td>
-                    <td>{service}</td>
-                    <td>{term} дней</td>
-                    <td class="right">{price},00</td>
-                </tr>
+                <tr><th>№</th><th>Наименование услуги</th><th>Срок выполнения</th><th>Стоимость, руб.</th></tr>
+                <tr><td>1</td><td>{service}</td><td>{term} дней</td><td class="right">{price},00</td></tr>
             </table>
-            
             <p class="right bold">Итого к оплате: {price} (Сумма прописью) рублей 00 копеек, НДС не облагается (УСН).</p>
-            
             <p class="bold">Условия сотрудничества:</p>
             <ol>
                 <li>Настоящее коммерческое предложение действительно в течение 14 (четырнадцати) календарных дней с даты его формирования.</li>
@@ -170,16 +157,13 @@ async def generate_doc(
                 <li>Ответственность за сохранность груза в пути застрахована.</li>
                 <li>Указанные цены носят информационный характер. Настоящее КП не является публичной офертой в соответствии со ст. 437 ГК РФ.</li>
             </ol>
-            
             <br><br>
-            <p>С уважением,<br>
-            Генеральный директор {profile.company} _______________ / {director_name} /</p>
+            <p>С уважением,<br>Генеральный директор {profile.company} _______________ / {director_name} /</p>
         </body>
         </html>
         """
         pisa.CreatePDF(html_content, dest=buffer)
 
-    # --- ГЕНЕРАЦИЯ СМЕТЫ (ПО ВАШЕМУ ПРИМЕРУ) ---
     elif template == "smeta":
         html_content = f"""
         <!DOCTYPE html>
@@ -204,34 +188,13 @@ async def generate_doc(
                 Приложение № 1<br>
                 к Договору оказания услуг № {dogovor_number} от {smeta_date_to_use} г.
             </div>
-            
             <h1>СМЕТА НА ОКАЗАНИЕ УСЛУГ</h1>
-            
             <table>
-                <tr>
-                    <th>№</th>
-                    <th>Наименование работ / услуг</th>
-                    <th>Ед. изм.</th>
-                    <th>Кол-во</th>
-                    <th>Цена, руб.</th>
-                    <th>Сумма, руб.</th>
-                </tr>
-                <tr>
-                    <td style="text-align: center;">1</td>
-                    <td>{service}</td>
-                    <td style="text-align: center;">усл.</td>
-                    <td class="num">1</td>
-                    <td class="num">{price},00</td>
-                    <td class="num">{price},00</td>
-                </tr>
-                <tr class="bold">
-                    <td colspan="5" class="num">Всего к оплате:</td>
-                    <td class="num">{price},00</td>
-                </tr>
+                <tr><th>№</th><th>Наименование работ / услуг</th><th>Ед. изм.</th><th>Кол-во</th><th>Цена, руб.</th><th>Сумма, руб.</th></tr>
+                <tr><td style="text-align: center;">1</td><td>{service}</td><td style="text-align: center;">усл.</td><td class="num">1</td><td class="num">{price},00</td><td class="num">{price},00</td></tr>
+                <tr class="bold"><td colspan="5" class="num">Всего к оплате:</td><td class="num">{price},00</td></tr>
             </table>
-            
             <p style="margin-top: 15px;"><strong>Всего наименований 1, на сумму {price} (Сумма прописью) рублей 00 копеек.</strong></p>
-            
             <table class="signs">
                 <tr>
                     <td style="border: none; width: 50%;"><strong>Исполнитель:</strong><br><br>________________ / {director_name} /<br>М.П.</td>
@@ -243,7 +206,6 @@ async def generate_doc(
         """
         pisa.CreatePDF(html_content, dest=buffer)
 
-    # --- ГЕНЕРАЦИЯ ДОГОВОРА (ПО ВАШЕМУ ПРИМЕРУ) ---
     elif template == "dogovor":
         html_content = f"""
         <!DOCTYPE html>
@@ -261,46 +223,20 @@ async def generate_doc(
         </head>
         <body>
             <div class="title">ДОГОВОР ОКАЗАНИЯ УСЛУГ № {dogovor_number}</div>
-            <div class="meta">
-                <span>г. Москва</span>
-                <span>«{date_to_use}» г.</span>
-            </div>
-            
+            <div class="meta"><span>г. Москва</span><span>«{date_to_use}» г.</span></div>
             <p>{profile.company}, именуемое в дальнейшем «Исполнитель», в лице {director_name}, действующего на основании Устава, с одной стороны, и {customer_name} (ИНН: {customer_inn}, адрес: {customer_address}), именуемое в дальнейшем «Заказчик», в лице представителя, действующего на основании Устава, с другой стороны, заключили настоящий Договор о нижеследующем:</p>
-            
-            <p><strong>1. ПРЕДМЕТ ДОГОВОРА</strong><br>
-            1.1. Исполнитель обязуется по заданию Заказчика оказать услуги: {service}.</p>
-            
-            <p><strong>2. СТОИМОСТЬ УСЛУГ И ПОРЯДОК РАСЧЕТОВ</strong><br>
-            2.1. Общая стоимость Услуг составляет {price} руб.<br>
-            2.2. Оплата производится в течение 3 банковских дней с момента подписания Акта.</p>
-            
-            <p><strong>3. ОТВЕТСТВЕННОСТЬ СТОРОН</strong><br>
-            3.1. За нарушение сроков оплаты Заказчик уплачивает неустойку 0,1% за каждый день просрочки.</p>
-            
-            <p><strong>4. ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ</strong><br>
-            4.1. Договор вступает в силу с момента подписания и действует до полного исполнения обязательств.</p>
-            
+            <p><strong>1. ПРЕДМЕТ ДОГОВОРА</strong><br>1.1. Исполнитель обязуется по заданию Заказчика оказать услуги: {service}.</p>
+            <p><strong>2. СТОИМОСТЬ УСЛУГ И ПОРЯДОК РАСЧЕТОВ</strong><br>2.1. Общая стоимость Услуг составляет {price} руб.<br>2.2. Оплата производится в течение 3 банковских дней с момента подписания Акта.</p>
+            <p><strong>3. ОТВЕТСТВЕННОСТЬ СТОРОН</strong><br>3.1. За нарушение сроков оплаты Заказчик уплачивает неустойку 0,1% за каждый день просрочки.</p>
+            <p><strong>4. ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ</strong><br>4.1. Договор вступает в силу с момента подписания и действует до полного исполнения обязательств.</p>
             <br><br>
             <table class="signs">
                 <tr>
                     <td>
-                        <strong>ИСПОЛНИТЕЛЬ:</strong><br>
-                        {profile.company}<br>
-                        ИНН: {profile.inn}<br>
-                        Адрес: {profile.address}<br><br>
-                        Генеральный директор<br>
-                        ________________ / {director_name} /<br>
-                        М.П.
+                        <strong>ИСПОЛНИТЕЛЬ:</strong><br>{profile.company}<br>ИНН: {profile.inn}<br>Адрес: {profile.address}<br><br>Генеральный директор<br>________________ / {director_name} /<br>М.П.
                     </td>
                     <td>
-                        <strong>ЗАКАЗЧИК:</strong><br>
-                        {customer_name}<br>
-                        ИНН: {customer_inn}<br>
-                        Адрес: {customer_address}<br><br>
-                        Должность<br>
-                        ________________ / ФИО /<br>
-                        М.П.
+                        <strong>ЗАКАЗЧИК:</strong><br>{customer_name}<br>ИНН: {customer_inn}<br>Адрес: {customer_address}<br><br>Должность<br>________________ / ФИО /<br>М.П.
                     </td>
                 </tr>
             </table>
