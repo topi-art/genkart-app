@@ -5,6 +5,7 @@ import io
 import requests
 import os
 from datetime import datetime, timedelta
+from textwrap import wrap
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
@@ -212,29 +213,25 @@ async def generate_doc(
         c.setFont(FONT_REGULAR, 12)
         c.drawString(60, table_top - 160, f"Сроки оказания услуг: {term_text}")
         
-        # --- ЮРИДИЧЕСКИЕ УСЛОВИЯ ДЛЯ КП ---
+        # --- УСЛОВИЯ ДЛЯ КП ---
         c.setFont(FONT_BOLD, 12)
         c.drawString(60, table_top - 220, "УСЛОВИЯ ПРЕДЛОЖЕНИЯ:")
         
-        c.setFont(FONT_REGULAR, 9)
         conditions_kp = [
             "1. Настоящее коммерческое предложение (КП) действительно в течение 14 (четырнадцати) календарных дней с даты его формирования.",
             f"2. Порядок оплаты: {payment_text} от общей стоимости в течение 3 (трех) банковских дней с момента выставления счета.",
             "3. Гарантия на выполняемые работы (поставляемый товар) составляет 12 месяцев с момента подписания закрывающих документов.",
             "4. Указанные цены носят информационный характер. Настоящее КП не является публичной офертой в соответствии со ст. 437 ГК РФ."
         ]
+        
         y_pos = table_top - 240
         for cond in conditions_kp:
-            text_object = c.beginText(60, y_pos)
-            text_object.setFont(FONT_REGULAR, 9)
-            # Простой перенос длинных строк
-            if len(cond) > 110:
-                text_object.textLine(cond[:110])
-                text_object.textLine(cond[110:])
-            else:
-                text_object.textLine(cond)
-            c.drawText(text_object)
-            y_pos -= 30
+            lines = wrap(cond, width=100)
+            for line in lines:
+                c.setFont(FONT_REGULAR, 9)
+                c.drawString(60, y_pos, line)
+                y_pos -= 12
+            y_pos -= 8
 
     elif template == "smeta":
         c.setFont(FONT_BOLD, 16)
@@ -271,28 +268,25 @@ async def generate_doc(
         c.setFont(FONT_REGULAR, 12)
         c.drawString(60, table_top - 160, f"Сроки: {term_text}")
 
-        # --- ЮРИДИЧЕСКИЕ ПРИМЕЧАНИЯ ДЛЯ СМЕТЫ ---
+        # --- ПРИМЕЧАНИЯ ДЛЯ СМЕТЫ ---
         c.setFont(FONT_BOLD, 12)
         c.drawString(60, table_top - 220, "ПРИМЕЧАНИЯ К СМЕТЕ:")
         
-        c.setFont(FONT_REGULAR, 9)
         conditions_smeta = [
             "1. Настоящая Смета является неотъемлемой частью Договора (Приложение № 1) и действительна только при наличии подписей обеих Сторон.",
             "2. Расчет является предварительным. Итоговая стоимость может быть скорректирована при изменении объема работ более чем на 10%.",
             "3. Транспортные расходы и доставка: рассчитываются отдельно по тарифам транспортной компании и оплачиваются Заказчиком.",
             "4. В стоимость сметы не включены дополнительные работы, не указанные в перечне выше."
         ]
+        
         y_pos = table_top - 240
         for cond in conditions_smeta:
-            text_object = c.beginText(60, y_pos)
-            text_object.setFont(FONT_REGULAR, 9)
-            if len(cond) > 110:
-                text_object.textLine(cond[:110])
-                text_object.textLine(cond[110:])
-            else:
-                text_object.textLine(cond)
-            c.drawText(text_object)
-            y_pos -= 30
+            lines = wrap(cond, width=100)
+            for line in lines:
+                c.setFont(FONT_REGULAR, 9)
+                c.drawString(60, y_pos, line)
+                y_pos -= 12
+            y_pos -= 8
 
     elif template == "dogovor":
         c.setFont(FONT_BOLD, 16)
@@ -315,11 +309,10 @@ async def generate_doc(
         text_object.textLine(f"Сроки оказания услуг: {term_text}.")
         c.drawText(text_object)
 
-        # --- ЮРИДИЧЕСКИЕ ПОЛОЖЕНИЯ ДЛЯ ДОГОВОРА ---
+        # --- ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ ДЛЯ ДОГОВОРА ---
         c.setFont(FONT_BOLD, 12)
         c.drawString(60, height - 340, "ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ И ОТВЕТСТВЕННОСТЬ СТОРОН:")
         
-        c.setFont(FONT_REGULAR, 9)
         conditions_dogovor = [
             "1. Настоящий Договор вступает в силу с момента его подписания обеими Сторонами и действует до полного исполнения обязательств.",
             "2. Приемка результатов работ оформляется двусторонним Актом. Заказчик обязан подписать Акт в течение 3 рабочих дней или направить мотивированный отказ.",
@@ -327,20 +320,18 @@ async def generate_doc(
             "4. За нарушение сроков исполнения обязательств Исполнитель уплачивает неустойку 0,1% от стоимости неисполненной части, но не более 10%.",
             "5. Все споры решаются путем переговоров, а при недостижении согласия — в Арбитражном суде по месту нахождения Истца."
         ]
+        
         y_pos = height - 360
         for cond in conditions_dogovor:
-            text_object = c.beginText(60, y_pos)
-            text_object.setFont(FONT_REGULAR, 9)
-            if len(cond) > 110:
-                text_object.textLine(cond[:110])
-                text_object.textLine(cond[110:])
-            else:
-                text_object.textLine(cond)
-            c.drawText(text_object)
-            y_pos -= 25
+            lines = wrap(cond, width=100)
+            for line in lines:
+                c.setFont(FONT_REGULAR, 9)
+                c.drawString(60, y_pos, line)
+                y_pos -= 12
+            y_pos -= 8
 
         c.setFont(FONT_BOLD, 12)
-        c.drawString(60, height - 520, "Подписи сторон:")
+        c.drawString(60, height - 500, "Подписи сторон:")
         c.setFont(FONT_REGULAR, 11)
         c.drawString(60, 150, "Исполнитель: _______________________")
         c.drawRightString(width - 60, 150, "Заказчик: _______________________")
