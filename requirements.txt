@@ -2,5 +2,6 @@ fastapi
 uvicorn
 requests
 python-multipart
-reportlab
+pillow
 sqlalchemy
+xhtml2pdf
