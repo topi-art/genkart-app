@@ -1,188 +1,164 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GenDoc</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        :root { --bg: #121212; --card: #1e1e1e; --text: #ffffff; --muted: #888888; --accent: #ff2a75; --accent-txt: #ffffff; }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        body { background: var(--bg); color: var(--text); padding: 16px; padding-bottom: 80px; }
-        
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .logo { font-size: 20px; font-weight: 800; } .logo span { color: var(--accent); }
-        
-        .step-card { background: var(--card); border-radius: 16px; padding: 20px; margin-bottom: 16px; border: 1px solid #2a2a2a; }
-        .step-header { display: flex; align-items: center; margin-bottom: 16px; font-size: 16px; font-weight: 600; }
-        .step-number { background: #333; color: var(--muted); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; margin-right: 10px; }
-        
-        .input-text { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #333; background: #121212; color: white; margin-bottom: 10px; font-size: 14px; }
-        .input-text::placeholder { color: #555; }
-        
-        .templates { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
-        .tpl-btn { flex: 1; min-width: 45%; padding: 12px; background: #121212; color: var(--muted); border: 1px solid #333; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; text-align: center; }
-        .tpl-btn.active { background: #2a2a2a; color: var(--accent); border-color: var(--accent); }
+from fastapi import FastAPI, File, UploadFile, Form
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+import io
+import os
+import json
+import requests
+from datetime import datetime
+from sqlalchemy import create_engine, Column, String, Integer
+from sqlalchemy.orm import declarative_base, sessionmaker
+from xhtml2pdf import pisa
 
-        .btn-generate { background: var(--accent); color: var(--accent-txt); border: none; width: 100%; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; margin-bottom: 10px; }
-        
-        .dynamic-fields { display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid #333; }
-        .dynamic-fields.active { display: block; }
-        
-        .status-text { font-size: 13px; color: var(--accent); text-align: center; margin-top: 10px; }
-    </style>
-</head>
-<body>
-    <div class="header"><div class="logo">Gen<span>Doc</span></div></div>
+app = FastAPI()
 
-    <div id="profileSection" class="step-card">
-        <div class="step-header"><div class="step-number">1</div>Профиль компании</div>
-        <input type="text" id="companyInput" class="input-text" placeholder="Название компании" value="ООО Тест">
-        <input type="text" id="innInput" class="input-text" placeholder="ИНН / КПП" value="1234567890">
-        <input type="text" id="addressInput" class="input-text" placeholder="Юридический адрес" value="г. Москва">
-        <input type="text" id="contactInput" class="input-text" placeholder="Контакты" value="+7 999 999-99-99">
-        <button class="btn-generate" id="btnSaveProfile" style="background: #444;">Сохранить профиль</button>
-    </div>
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-    <div id="generateSection" class="step-card">
-        <div class="step-header"><div class="step-number">2</div>Данные документа</div>
-        
-        <div class="templates">
-            <button class="tpl-btn active" onclick="setTemplate('kp', this)">КП</button>
-            <button class="tpl-btn" onclick="setTemplate('smeta', this)">Смета</button>
-            <button class="tpl-btn" onclick="setTemplate('dogovor', this)">Договор</button>
-        </div>
+BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
 
-        <input type="text" id="serviceInput" class="input-text" placeholder="Услуга / Наименование" value="Тестовая услуга">
-        <input type="text" id="priceInput" class="input-text" placeholder="Цена (руб.)" value="10000">
-        <input type="text" id="termInput" class="input-text" placeholder="Сроки (дней)" value="30">
+# --- БАЗА ДАННЫХ ---
+DATABASE_URL = "sqlite:///./profiles_final.db"
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
 
-        <div id="dogovorFields" class="dynamic-fields">
-            <input type="text" id="dogovorNumber" class="input-text" placeholder="Номер договора" value="15/26">
-            <input type="text" id="dogovorDate" class="input-text" placeholder="Дата договора" value="12.11.2026">
-            <input type="text" id="customerName" class="input-text" placeholder="Наименование Заказчика" value="ООО Заказчик">
-            <input type="text" id="customerInn" class="input-text" placeholder="ИНН Заказчика" value="0987654321">
-            <input type="text" id="customerAddress" class="input-text" placeholder="Адрес Заказчика" value="г. Москва">
-            <input type="text" id="directorName" class="input-text" placeholder="ФИО Директора" value="Иванов И.И.">
-        </div>
+class Profile(Base):
+    __tablename__ = "profiles"
+    id = Column(Integer, primary_key=True, index=True)
+    chat_id = Column(String, unique=True, index=True)
+    company = Column(String, default="ООО Ваша компания")
+    inn = Column(String, default="0000000000")
+    address = Column(String, default="г. Москва")
+    contacts = Column(String, default="+7 (999) 999-99-99")
 
-        <div id="smetaFields" class="dynamic-fields">
-            <input type="text" id="smetaNumber" class="input-text" placeholder="Номер договора" value="15/26">
-            <input type="text" id="smetaDate" class="input-text" placeholder="Дата сметы" value="12.11.2026">
-        </div>
-        
-        <button class="btn-generate" id="btnGenerateDoc">Создать документ 📄</button>
-        <div class="status-text" id="statusText"></div>
-    </div>
+Base.metadata.create_all(bind=engine)
 
-    <script>
-        const tg = window.Telegram.WebApp; tg.expand(); tg.setHeaderColor('#121212');
-        const chatId = tg.initDataUnsafe?.user?.id;
-        const statusText = document.getElementById('statusText');
-        let currentTemplate = 'kp';
+# --- ЭНДПОИНТЫ ---
+@app.get("/")
+def read_root():
+    return {"status": "ok", "message": "Бэкенд работает!"}
 
-        // Загрузка профиля
-        async function loadProfile() {
-            if (!chatId) return;
-            try {
-                const res = await fetch(`https://genkart-app.onrender.com/get-profile?chat_id=${chatId}`);
-                const data = await res.json();
-                if (data.status === "ok") {
-                    document.getElementById('companyInput').value = data.company;
-                    document.getElementById('innInput').value = data.inn;
-                    document.getElementById('addressInput').value = data.address;
-                    document.getElementById('contactInput').value = data.contacts;
-                }
-            } catch (e) { console.log("Профиль не загружен"); }
-        }
-        loadProfile();
+@app.get("/get-profile")
+async def get_profile(chat_id: str):
+    db = SessionLocal()
+    profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
+    db.close()
+    if profile:
+        return {"status": "ok", "company": profile.company, "inn": profile.inn, "address": profile.address, "contacts": profile.contacts}
+    return {"status": "not_found"}
 
-        // Переключение вкладок
-        function setTemplate(tpl, btn) {
-            currentTemplate = tpl;
-            document.querySelectorAll('.tpl-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            document.querySelectorAll('.dynamic-fields').forEach(b => b.classList.remove('active'));
-            if (tpl === 'dogovor') document.getElementById('dogovorFields').classList.add('active');
-            if (tpl === 'smeta') document.getElementById('smetaFields').classList.add('active');
-        }
+@app.post("/save-profile")
+async def save_profile(
+    chat_id: str = Form(...),
+    company: str = Form(...),
+    inn: str = Form(...),
+    address: str = Form(...),
+    contacts: str = Form(...)
+):
+    db = SessionLocal()
+    try:
+        profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
+        if profile:
+            profile.company = company
+            profile.inn = inn
+            profile.address = address
+            profile.contacts = contacts
+        else:
+            new_profile = Profile(chat_id=chat_id, company=company, inn=inn, address=address, contacts=contacts)
+            db.add(new_profile)
+        db.commit()
+        return {"status": "ok", "message": "Сохранено"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        db.close()
 
-        // Сохранение профиля
-        document.getElementById('btnSaveProfile').addEventListener('click', async () => {
-            const btn = document.getElementById('btnSaveProfile');
-            btn.textContent = "Сохранение...";
-            
-            const fd = new FormData();
-            fd.append('chat_id', chatId);
-            fd.append('company', document.getElementById('companyInput').value);
-            fd.append('inn', document.getElementById('innInput').value);
-            fd.append('address', document.getElementById('addressInput').value);
-            fd.append('contacts', document.getElementById('contactInput').value);
+@app.post("/generate-doc")
+async def generate_doc(
+    template: str = Form("kp"),
+    company: str = Form("ООО Ваша компания"),
+    inn: str = Form("0000000000"),
+    address: str = Form("г. Москва"),
+    contacts: str = Form("+7 (999) 999-99-99"),
+    services_json: str = Form("[]"),
+    term: str = Form("30"),
+    dogovor_number: str = Form("Б/Н"),
+    dogovor_date: str = Form(""),
+    customer_name: str = Form("ООО Заказчик"),
+    customer_inn: str = Form("1111111111"),
+    customer_address: str = Form("г. Москва"),
+    director_name: str = Form("Иванов И.И."),
+    smeta_date: str = Form(""),
+    chat_id: str = Form(None)
+):
+    services = json.loads(services_json)
+    total_price = sum(float(s['price']) * int(s['qty']) for s in services)
+    current_date = datetime.now().strftime("%d.%m.%Y")
+    date_to_use = dogovor_date if dogovor_date else current_date
+    smeta_date_to_use = smeta_date if smeta_date else current_date
+    buffer = io.BytesIO()
 
-            try {
-                const res = await fetch('https://genkart-app.onrender.com/save-profile', { method: 'POST', body: fd });
-                if (res.ok) {
-                    btn.textContent = "Сохранено!";
-                    setTimeout(() => btn.textContent = "Сохранить профиль", 2000);
-                } else {
-                    btn.textContent = "Ошибка сервера";
-                }
-            } catch (e) {
-                btn.textContent = "Ошибка сети";
-            }
-        });
+    # --- ГЕНЕРАЦИЯ КП ---
+    if template == "kp":
+        rows = ""
+        for i, s in enumerate(services):
+            amount = float(s['price']) * int(s['qty'])
+            rows += f"<tr><td>{i+1}</td><td>{s['name']}</td><td>{term} дн.</td><td style='text-align:right;'>{amount:.2f}</td></tr>"
+        html = f"""<html><head><style>body{{font-family:'Times New Roman',serif;font-size:11pt;}}table{{width:100%;border-collapse:collapse;}}th,td{{border:1px solid #000;padding:8px;}}.title{{text-align:center;font-size:14pt;font-weight:bold;margin:20px 0;}}.header{{border-bottom:1px solid #000;padding-bottom:10px;margin-bottom:20px;}}</style></head><body>
+        <div class="header"><strong>{company}</strong><br>ИНН {inn}<br>{address}<br>Тел: {contacts}</div>
+        <div class="title">КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ</div>
+        <p>Предлагаем вам следующие услуги:</p>
+        <table><tr><th>№</th><th>Услуга</th><th>Срок</th><th>Стоимость</th></tr>{rows}</table>
+        <p style="text-align:right;"><strong>Итого: {total_price:.2f} руб.</strong> (НДС не облагается)</p>
+        <p><strong>Условия:</strong><br>1. КП действительно 14 дней.<br>2. Оплата 100% постоплата.</p><br>
+        <p>Директор {company} _______________ / {director_name} /</p></body></html>"""
+        pisa.CreatePDF(html, dest=buffer)
 
-        // Генерация документа
-        document.getElementById('btnGenerateDoc').addEventListener('click', async () => {
-            const btn = document.getElementById('btnGenerateDoc');
-            btn.disabled = true;
-            btn.textContent = "Отправка...";
-            statusText.textContent = "Подождите, документ отправится в чат...";
+    # --- ГЕНЕРАЦИЯ СМЕТЫ ---
+    elif template == "smeta":
+        rows = ""
+        for i, s in enumerate(services):
+            amount = float(s['price']) * int(s['qty'])
+            rows += f"<tr><td>{i+1}</td><td>{s['name']}</td><td>усл.</td><td>{s['qty']}</td><td>{s['price']}</td><td>{amount:.2f}</td></tr>"
+        html = f"""<html><head><style>body{{font-family:Arial,sans-serif;font-size:10pt;}}table{{width:100%;border-collapse:collapse;}}th,td{{border:1px solid #000;padding:6px;}}th{{background:#eee;}}</style></head><body>
+        <div style="text-align:right;margin-bottom:20px;">Приложение № 1 к Договору № {dogovor_number} от {smeta_date_to_use}</div>
+        <h1 style="text-align:center;font-size:13pt;">СМЕТА НА ОКАЗАНИЕ УСЛУГ</h1>
+        <table><tr><th>№</th><th>Наименование</th><th>Ед.</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr>{rows}
+        <tr><td colspan="5" style="text-align:right;font-weight:bold;">Всего к оплате:</td><td style="font-weight:bold;">{total_price:.2f}</td></tr></table>
+        <p style="margin-top:20px;"><strong>Всего наименований {len(services)}, на сумму {total_price:.2f} рублей.</strong></p><br><br>
+        <table style="border:none;"><tr><td style="border:none;">Исполнитель: ______________ / {director_name} /<br>М.П.</td><td style="border:none;">Заказчик: ______________ / {customer_name} /<br>М.П.</td></tr></table></body></html>"""
+        pisa.CreatePDF(html, dest=buffer)
 
-            const fd = new FormData();
-            fd.append('chat_id', chatId); // Передаем ID для отправки в чат
-            fd.append('template', currentTemplate);
-            fd.append('company', document.getElementById('companyInput').value);
-            fd.append('inn', document.getElementById('innInput').value);
-            fd.append('address', document.getElementById('addressInput').value);
-            fd.append('contacts', document.getElementById('contactInput').value);
-            fd.append('term', document.getElementById('termInput').value);
+    # --- ГЕНЕРАЦИЯ ДОГОВОРА ---
+    elif template == "dogovor":
+        html = f"""<html><head><style>body{{font-family:'Times New Roman',serif;font-size:11pt;line-height:1.35;}}.title{{text-align:center;font-size:14pt;font-weight:bold;margin-bottom:20px;}}.meta{{display:flex;justify-content:space-between;}}</style></head><body>
+        <div class="title">ДОГОВОР ОКАЗАНИЯ УСЛУГ № {dogovor_number}</div>
+        <div class="meta"><span>г. Москва</span><span>«{date_to_use}» г.</span></div>
+        <p>{company}, в лице {director_name}, с одной стороны, и {customer_name} (ИНН: {customer_inn}, адрес: {customer_address}), с другой стороны, заключили Договор:</p>
+        <p><strong>1. ПРЕДМЕТ ДОГОВОРА</strong><br>1.1. Исполнитель обязуется оказать услуги согласно Смете.</p>
+        <p><strong>2. СТОИМОСТЬ И ПОРЯДОК РАСЧЕТОВ</strong><br>2.1. Общая стоимость Услуг составляет {total_price:.2f} руб.</p>
+        <p><strong>3. ОТВЕТСТВЕННОСТЬ СТОРОН</strong><br>3.1. За нарушение сроков оплаты неустойка 0,1%.</p>
+        <p><strong>4. ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ</strong><br>4.1. Договор действует до полного исполнения.</p><br><br>
+        <table style="border:none;width:100%;"><tr><td style="border:none;width:50%;"><strong>ИСПОЛНИТЕЛЬ:</strong><br>{company}<br>ИНН: {inn}<br><br>______________ / {director_name} /</td><td style="border:none;width:50%;"><strong>ЗАКАЗЧИК:</strong><br>{customer_name}<br>ИНН: {customer_inn}<br><br>______________ / ФИО /</td></tr></table></body></html>"""
+        pisa.CreatePDF(html, dest=buffer)
 
-            const serviceObj = [{
-                name: document.getElementById('serviceInput').value,
-                qty: 1,
-                price: document.getElementById('priceInput').value
-            }];
-            fd.append('services_json', JSON.stringify(serviceObj));
+    buffer.seek(0)
 
-            if (currentTemplate === 'dogovor') {
-                fd.append('dogovor_number', document.getElementById('dogovorNumber').value);
-                fd.append('dogovor_date', document.getElementById('dogovorDate').value);
-                fd.append('customer_name', document.getElementById('customerName').value);
-                fd.append('customer_inn', document.getElementById('customerInn').value);
-                fd.append('customer_address', document.getElementById('customerAddress').value);
-                fd.append('director_name', document.getElementById('directorName').value);
-            }
-            if (currentTemplate === 'smeta') {
-                fd.append('dogovor_number', document.getElementById('smetaNumber').value);
-                fd.append('smeta_date', document.getElementById('smetaDate').value);
-            }
+    # --- ОТПРАВКА В TELEGRAM (СЮДА) ---
+    if chat_id:
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
+        files = {'document': ('document.pdf', buffer.getvalue(), 'application/pdf')}
+        data = {'chat_id': chat_id, 'caption': 'Ваш документ готов!'}
+        try:
+            requests.post(url, files=files, data=data)
+        except Exception as e:
+            print(f"ОШИБКА ОТПРАВКИ В ТГ: {e}")
+        buffer.seek(0)
 
-            try {
-                const res = await fetch('https://genkart-app.onrender.com/generate-doc', { method: 'POST', body: fd });
-                if (res.ok) {
-                    tg.showAlert("Документ отправлен в чат с ботом! Закройте приложение и проверьте сообщения.");
-                    statusText.textContent = "Готово! Проверьте чат с ботом.";
-                } else {
-                    statusText.textContent = "Ошибка сервера.";
-                }
-            } catch (e) {
-                statusText.textContent = "Ошибка сети.";
-            } finally {
-                btn.disabled = false;
-                btn.textContent = "Создать документ 📄";
-            }
-        });
-    </script>
-</body>
-</html>
+    return StreamingResponse(buffer, media_type="application/pdf")
