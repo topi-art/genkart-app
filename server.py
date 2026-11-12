@@ -1,79 +1,22 @@
-from fastapi import FastAPI, Form
+from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 import io
+import os
 import json
 from datetime import datetime
-from sqlalchemy import create_engine, Column, String, Integer
-from sqlalchemy.orm import declarative_base, sessionmaker
 from xhtml2pdf import pisa
 
 app = FastAPI()
-
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
 
-# --- БАЗА ДАННЫХ ---
-DATABASE_URL = "sqlite:///./profiles_simple.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
 
-class Profile(Base):
-    __tablename__ = "profiles"
-    id = Column(Integer, primary_key=True, index=True)
-    chat_id = Column(String, unique=True, index=True)
-    company = Column(String, default="ООО Ваша компания")
-    inn = Column(String, default="0000000000")
-    address = Column(String, default="г. Москва")
-    contacts = Column(String, default="+7 (999) 999-99-99")
-
-Base.metadata.create_all(bind=engine)
-
-# --- ЭНДПОИНТЫ ---
 @app.get("/")
 def read_root():
-    return {"status": "ok", "message": "Сервер работает!"}
-
-@app.get("/get-profile")
-async def get_profile(chat_id: str):
-    db = SessionLocal()
-    profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
-    db.close()
-    if profile:
-        return {"status": "ok", "company": profile.company, "inn": profile.inn, "address": profile.address, "contacts": profile.contacts}
-    return {"status": "not_found"}
-
-@app.post("/save-profile")
-async def save_profile(
-    chat_id: str = Form(...),
-    company: str = Form(...),
-    inn: str = Form(...),
-    address: str = Form(...),
-    contacts: str = Form(...)
-):
-    db = SessionLocal()
-    try:
-        profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
-        if profile:
-            profile.company = company
-            profile.inn = inn
-            profile.address = address
-            profile.contacts = contacts
-        else:
-            new_profile = Profile(chat_id=chat_id, company=company, inn=inn, address=address, contacts=contacts)
-            db.add(new_profile)
-        db.commit()
-        return {"status": "ok", "message": "Сохранено"}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-    finally:
-        db.close()
+    return {"status": "ok", "message": "Бэкенд работает!"}
 
 @app.post("/generate-doc")
 async def generate_doc(
@@ -97,9 +40,9 @@ async def generate_doc(
     current_date = datetime.now().strftime("%d.%m.%Y")
     date_to_use = dogovor_date if dogovor_date else current_date
     smeta_date_to_use = smeta_date if smeta_date else current_date
+    
     buffer = io.BytesIO()
 
-    # --- ГЕНЕРАЦИЯ КП ---
     if template == "kp":
         rows = ""
         for i, s in enumerate(services):
@@ -115,7 +58,6 @@ async def generate_doc(
         <p>Директор {company} _______________ / {director_name} /</p></body></html>"""
         pisa.CreatePDF(html, dest=buffer)
 
-    # --- ГЕНЕРАЦИЯ СМЕТЫ ---
     elif template == "smeta":
         rows = ""
         for i, s in enumerate(services):
@@ -130,7 +72,6 @@ async def generate_doc(
         <table style="border:none;"><tr><td style="border:none;">Исполнитель: ______________ / {director_name} /<br>М.П.</td><td style="border:none;">Заказчик: ______________ / {customer_name} /<br>М.П.</td></tr></table></body></html>"""
         pisa.CreatePDF(html, dest=buffer)
 
-    # --- ГЕНЕРАЦИЯ ДОГОВОРА ---
     elif template == "dogovor":
         html = f"""<html><head><style>body{{font-family:'Times New Roman',serif;font-size:11pt;line-height:1.35;}}.title{{text-align:center;font-size:14pt;font-weight:bold;margin-bottom:20px;}}.meta{{display:flex;justify-content:space-between;}}</style></head><body>
         <div class="title">ДОГОВОР ОКАЗАНИЯ УСЛУГ № {dogovor_number}</div>
