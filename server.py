@@ -4,7 +4,7 @@ from fastapi.responses import StreamingResponse
 import io
 import requests
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
@@ -43,7 +43,6 @@ class Profile(Base):
 
 Base.metadata.create_all(bind=engine)
 
-# --- ШРИФТЫ ---
 FONT_REGULAR = 'Helvetica'
 FONT_BOLD = 'Helvetica-Bold'
 possible_paths = [
@@ -75,7 +74,6 @@ async def save_profile(
     db = SessionLocal()
     try:
         profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
-        
         logo_path = ""
         if logo:
             logo_path = f"logo_{chat_id}.png"
@@ -107,7 +105,8 @@ async def generate_doc(
     service: str = Form(...),
     price: str = Form(...),
     term: str = Form(...),
-    template: str = Form("kp")
+    template: str = Form("kp"),
+    payment: str = Form("prepay") # Новый параметр
 ):
     db = SessionLocal()
     profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
@@ -120,14 +119,24 @@ async def generate_doc(
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
-    # --- 1. РАМКА БЛАНКА ---
+    # --- ВОДЯНОЙ ЗНАК ---
+    if profile.logo_path and os.path.exists(profile.logo_path):
+        try:
+            c.saveState()
+            c.setFillAlpha(0.05)
+            img = ImageReader(profile.logo_path)
+            c.drawImage(img, width/2 - 200, height/2 - 200, width=400, height=400, preserveAspectRatio=True, mask='auto')
+            c.restoreState()
+        except: pass
+
+    # --- РАМКА ---
     c.setStrokeColor(colors.black)
     c.setLineWidth(1)
     c.rect(30, 30, width - 60, height - 60)
     c.setLineWidth(0.5)
     c.rect(35, 35, width - 70, height - 70)
 
-    # --- 2. ШАПКА ---
+    # --- ШАПКА ---
     if profile.logo_path and os.path.exists(profile.logo_path):
         try:
             img = ImageReader(profile.logo_path)
@@ -148,19 +157,25 @@ async def generate_doc(
     c.setLineWidth(2)
     c.line(40, height - 130, width - 40, height - 130)
 
-    # --- 3. ДАТА ---
     current_date = datetime.now().strftime("%d.%m.%Y")
     c.setFont(FONT_REGULAR, 10)
     c.setFillColor(colors.black)
     c.drawRightString(width - 50, height - 150, f"Дата: {current_date}")
 
-    # --- 4. ТЕЛО ДОКУМЕНТА ---
+    # --- ОПРЕДЕЛЯЕМ ТЕКСТ УСЛОВИЙ ОПЛАТЫ ---
+    if payment == "prepay":
+        payment_text = "100% предоплата перед началом выполнения работ."
+    elif payment == "half":
+        payment_text = "50% предоплата, 50% по факту сдачи работ."
+    else:
+        payment_text = "100% постоплата после подписания акта выполненных работ."
+
+    # --- ТЕЛО ---
     if template == "kp":
         c.setFont(FONT_BOLD, 16)
-        c.drawCentredString(width / 2, height - 180, "КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ")
+        c.drawCentredString(width / 2, height - 190, "КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ")
         
-        # Таблица (Наименование, Стоимость)
-        table_top = height - 220
+        table_top = height - 230
         c.setFont(FONT_BOLD, 12)
         c.setFillColor(colors.HexColor("#f0f0f0"))
         c.rect(50, table_top - 25, width - 100, 25, fill=1, stroke=1)
@@ -168,11 +183,9 @@ async def generate_doc(
         c.drawString(60, table_top - 17, "Наименование услуги")
         c.drawString(width - 150, table_top - 17, "Стоимость")
         
-        # Строка таблицы
         c.rect(50, table_top - 80, width - 100, 55, fill=0, stroke=1)
         c.setFont(FONT_REGULAR, 12)
         
-        # Текст в таблице (с переносом)
         text_object = c.beginText(60, table_top - 45)
         text_object.setFont(FONT_REGULAR, 12)
         if len(service) > 40:
@@ -185,27 +198,39 @@ async def generate_doc(
         c.setFont(FONT_BOLD, 14)
         c.drawString(width - 150, table_top - 45, price)
 
-        # Итого
         c.setFont(FONT_BOLD, 14)
         c.drawString(width - 250, table_top - 120, "ИТОГО К ОПЛАТЕ:")
         c.setFont(FONT_BOLD, 18)
         c.drawRightString(width - 50, table_top - 120, price)
 
-        # Сроки и подпись
+        if term.isdigit():
+            delivery_date = (datetime.now() + timedelta(days=int(term))).strftime("%d.%m.%Y")
+            term_text = f"{term} дней (до {delivery_date})"
+        else:
+            term_text = term
+
         c.setFont(FONT_REGULAR, 12)
-        c.drawString(60, table_top - 160, f"Сроки оказания услуг: {term}")
+        c.drawString(60, table_top - 160, f"Сроки оказания услуг: {term_text}")
         
+        # УСЛОВИЯ
+        c.setFont(FONT_BOLD, 12)
+        c.drawString(60, table_top - 220, "Условия сотрудничества:")
         c.setFont(FONT_REGULAR, 10)
-        c.drawString(60, 100, "Руководитель _______________________")
-        c.drawString(60, 85, "(подпись, расшифровка)")
-        c.drawString(width - 200, 100, "М.П.")
+        conditions = [
+            f"1. Порядок оплаты: {payment_text}",
+            "2. Предложение действительно в течение 14 календарных дней.",
+            "3. Гарантия на выполненные работы составляет 12 месяцев."
+        ]
+        y_pos = table_top - 240
+        for cond in conditions:
+            c.drawString(60, y_pos, cond)
+            y_pos -= 15
 
     elif template == "smeta":
         c.setFont(FONT_BOLD, 16)
-        c.drawCentredString(width / 2, height - 180, "СМЕТА")
+        c.drawCentredString(width / 2, height - 190, "СМЕТА")
         
-        # Таблица сметы (с колонками)
-        table_top = height - 220
+        table_top = height - 230
         c.setFont(FONT_BOLD, 12)
         c.setFillColor(colors.HexColor("#f0f0f0"))
         c.rect(50, table_top - 25, width - 100, 25, fill=1, stroke=1)
@@ -214,9 +239,8 @@ async def generate_doc(
         c.drawString(90, table_top - 17, "Наименование работ")
         c.drawString(width - 150, table_top - 17, "Стоимость")
         
-        # Строка
         c.rect(50, table_top - 80, width - 100, 55, fill=0, stroke=1)
-        c.line(80, table_top - 80, 80, table_top - 25) # Разделитель колонки №
+        c.line(80, table_top - 80, 80, table_top - 25)
         
         c.setFont(FONT_REGULAR, 12)
         c.drawString(65, table_top - 45, "1")
@@ -228,33 +252,50 @@ async def generate_doc(
         c.setFont(FONT_BOLD, 18)
         c.drawRightString(width - 50, table_top - 120, price)
 
-        c.setFont(FONT_REGULAR, 12)
-        c.drawString(60, table_top - 160, f"Сроки: {term}")
+        if term.isdigit():
+            delivery_date = (datetime.now() + timedelta(days=int(term))).strftime("%d.%m.%Y")
+            term_text = f"{term} дней (до {delivery_date})"
+        else:
+            term_text = term
 
+        c.setFont(FONT_REGULAR, 12)
+        c.drawString(60, table_top - 160, f"Сроки: {term_text}")
+
+        # УСЛОВИЯ
+        c.setFont(FONT_BOLD, 12)
+        c.drawString(60, table_top - 220, "Примечание:")
         c.setFont(FONT_REGULAR, 10)
-        c.drawString(60, 100, "Руководитель _______________________")
-        c.drawString(60, 85, "(подпись, расшифровка)")
-        c.drawString(width - 200, 100, "М.П.")
+        c.drawString(60, table_top - 240, f"Порядок оплаты: {payment_text}")
+        c.drawString(60, table_top - 260, "Смета является предварительной.")
 
     elif template == "dogovor":
         c.setFont(FONT_BOLD, 16)
-        c.drawCentredString(width / 2, height - 180, "ДОГОВОР ОКАЗАНИЯ УСЛУГ")
+        c.drawCentredString(width / 2, height - 190, "ДОГОВОР ОКАЗАНИЯ УСЛУГ")
         
         c.setFont(FONT_BOLD, 12)
-        c.drawString(60, height - 220, "1. Предмет договора:")
+        c.drawString(60, height - 230, "1. Предмет договора:")
         
         c.setFont(FONT_REGULAR, 12)
-        # Текст с красной строкой (отступом)
-        text_object = c.beginText(80, height - 240)
+        text_object = c.beginText(80, height - 250)
         text_object.textLine(f"Исполнитель обязуется оказать услугу: {service}.")
         text_object.textLine("")
         text_object.textLine(f"Стоимость услуг составляет: {price}.")
-        text_object.textLine(f"Сроки оказания услуг: {term}.")
+        
+        if term.isdigit():
+            delivery_date = (datetime.now() + timedelta(days=int(term))).strftime("%d.%m.%Y")
+            term_text = f"{term} календарных дней (до {delivery_date})"
+        else:
+            term_text = term
+        text_object.textLine(f"Сроки оказания услуг: {term_text}.")
         c.drawText(text_object)
         
         c.setFont(FONT_BOLD, 12)
-        c.drawString(60, height - 340, "2. Подписи сторон:")
-        
+        c.drawString(60, height - 340, "2. Порядок расчетов:")
+        c.setFont(FONT_REGULAR, 12)
+        c.drawString(80, height - 360, payment_text) # Вставляем выбранный текст оплаты
+
+        c.setFont(FONT_BOLD, 12)
+        c.drawString(60, height - 400, "3. Подписи сторон:")
         c.setFont(FONT_REGULAR, 12)
         c.drawString(60, 150, "Исполнитель: _______________________")
         c.drawRightString(width - 60, 150, "Заказчик: _______________________")
