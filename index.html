@@ -136,10 +136,11 @@
         document.getElementById('btnGenerateDoc').addEventListener('click', async () => {
             const btn = document.getElementById('btnGenerateDoc');
             btn.disabled = true;
-            btn.textContent = "Создаем PDF... ⏳";
-            statusText.textContent = "Подождите...";
+            btn.textContent = "Отправка...";
+            statusText.textContent = "Подождите, документ отправится в чат...";
 
             const fd = new FormData();
+            fd.append('chat_id', chatId); // Передаем ID для отправки в чат
             fd.append('template', currentTemplate);
             fd.append('company', document.getElementById('companyInput').value);
             fd.append('inn', document.getElementById('innInput').value);
@@ -170,9 +171,8 @@
             try {
                 const res = await fetch('https://genkart-app.onrender.com/generate-doc', { method: 'POST', body: fd });
                 if (res.ok) {
-                    const blob = await res.blob();
-                    tg.openLink(URL.createObjectURL(blob));
-                    statusText.textContent = "Готово!";
+                    tg.showAlert("Документ отправлен в чат с ботом! Закройте приложение и проверьте сообщения.");
+                    statusText.textContent = "Готово! Проверьте чат с ботом.";
                 } else {
                     statusText.textContent = "Ошибка сервера.";
                 }
