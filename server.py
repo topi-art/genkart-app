@@ -8,6 +8,7 @@ from datetime import datetime
 from sqlalchemy import create_engine, Column, String, Integer, Text
 from sqlalchemy.orm import declarative_base, sessionmaker
 from xhtml2pdf import pisa
+from num2words import num2words
 
 app = FastAPI()
 
@@ -21,7 +22,7 @@ app.add_middleware(
 
 BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
 
-# --- БАЗА ДАННЫХ (Добавлены банковские реквизиты) ---
+# --- БАЗА ДАННЫХ ---
 DATABASE_URL = "sqlite:///./profiles_final.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -33,12 +34,13 @@ class Profile(Base):
     chat_id = Column(String, unique=True, index=True)
     company = Column(String, default="ООО Ваша компания")
     inn = Column(String, default="0000000000")
+    kpp = Column(String, default="") # Добавили КПП
     address = Column(String, default="г. Москва")
     contacts = Column(String, default="+7 (999) 999-99-99")
     director = Column(String, default="Иванов И.И.")
     director_rod = Column(String, default="Иванова И.И.")
     director_pos = Column(String, default="Генерального директора")
-    # Банковские реквизиты для счета
+    director_pos_nom = Column(String, default="Генеральный директор") # Для подписи
     bank_name = Column(String, default="")
     bik = Column(String, default="")
     rs = Column(String, default="")
@@ -47,11 +49,11 @@ class Profile(Base):
 
 Base.metadata.create_all(bind=engine)
 
-# --- СТИЛИ (ГОСТ Р 7.0.97-2016) ---
+# --- СТИЛИ ---
 CSS_STYLES = """
 @page { size: a4; margin: 20mm 15mm 20mm 30mm; }
 @font-face { font-family: "PTSans"; src: url("https://github.com/google/fonts/raw/main/ofl/ptsans/PT_Sans-Web-Regular.ttf"); }
-body { font-family: "PTSans", sans-serif; font-size: 12pt; line-height: 1.35; text-align: justify; color: #000; text-indent: 1.25cm; }
+body { font-family: "PTSans", sans-serif; font-size: 11pt; line-height: 1.35; text-align: justify; color: #000; text-indent: 1.25cm; }
 h1.title { text-align: center; font-size: 14pt; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; text-indent: 0; }
 .meta { width: 100%; margin-bottom: 20px; text-indent: 0; }
 .meta td { border: none; padding: 0; }
@@ -60,6 +62,7 @@ table { width: 100%; border-collapse: collapse; margin-top: 15px; text-indent: 0
 th, td { border: 1px solid #000; padding: 6px; text-align: left; }
 .header-info { margin-bottom: 20px; font-size: 10pt; text-align: left; text-indent: 0; }
 .signature-block { margin-top: 30px; text-indent: 0; }
+.list-item { text-indent: 0; margin-bottom: 5px; }
 """
 
 # --- УТИЛИТЫ ---
@@ -68,20 +71,20 @@ def format_money(val):
 
 def num2words_rub(num):
     try:
-        from num2words import num2words
         rub = int(num)
         kop = int(round((num - rub) * 100))
         rub_str = num2words(rub, lang='ru').capitalize()
         return f"{rub_str} рублей {kop:02d} копеек"
-    except ImportError:
+    except:
         return f"{format_money(num)} рублей"
 
-def get_header_html(company, inn, address, contacts, logo_base64=None):
+def get_header_html(company, inn, kpp, address, contacts, logo_base64=None):
     logo_html = f'<img src="{logo_base64}" style="max-height: 50px; margin-bottom: 10px;"><br>' if logo_base64 else ''
+    kpp_str = f"/{kpp}" if kpp else ""
     return f"""
     <div class="header-info">
         {logo_html}
-        <strong>{company}</strong><br>ИНН/КПП: {inn}<br>Адрес: {address}<br>Тел: {contacts}
+        <strong>{company}</strong><br>ИНН/КПП: {inn}{kpp_str}<br>Адрес: {address}<br>Тел: {contacts}
     </div>
     """
 
@@ -95,28 +98,28 @@ async def get_profile(chat_id: str):
     profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
     db.close()
     if profile:
-        return {"status": "ok", "company": profile.company, "inn": profile.inn, "address": profile.address, "contacts": profile.contacts, "director": profile.director, "director_rod": profile.director_rod, "director_pos": profile.director_pos, "bank_name": profile.bank_name, "bik": profile.bik, "rs": profile.rs, "ks": profile.ks, "logo": profile.logo}
+        return {"status": "ok", "company": profile.company, "inn": profile.inn, "kpp": profile.kpp, "address": profile.address, "contacts": profile.contacts, "director": profile.director, "director_rod": profile.director_rod, "director_pos": profile.director_pos, "director_pos_nom": profile.director_pos_nom, "bank_name": profile.bank_name, "bik": profile.bik, "rs": profile.rs, "ks": profile.ks, "logo": profile.logo}
     return {"status": "not_found"}
 
 @app.post("/save-profile")
 async def save_profile(
-    chat_id: str = Form(...), company: str = Form(...), inn: str = Form(...), address: str = Form(...), 
-    contacts: str = Form(...), director: str = Form(...), director_rod: str = Form(...), director_pos: str = Form(...), 
+    chat_id: str = Form(...), company: str = Form(...), inn: str = Form(...), kpp: str = Form(""), address: str = Form(...), 
+    contacts: str = Form(...), director: str = Form(...), director_rod: str = Form(...), director_pos: str = Form(...), director_pos_nom: str = Form(...),
     bank_name: str = Form(None), bik: str = Form(None), rs: str = Form(None), ks: str = Form(None), logo: str = Form(None)
 ):
     db = SessionLocal()
     try:
         profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
         if profile:
-            profile.company, profile.inn, profile.address, profile.contacts = company, inn, address, contacts
-            profile.director, profile.director_rod, profile.director_pos = director, director_rod, director_pos
+            profile.company, profile.inn, profile.kpp, profile.address, profile.contacts = company, inn, kpp, address, contacts
+            profile.director, profile.director_rod, profile.director_pos, profile.director_pos_nom = director, director_rod, director_pos, director_pos_nom
             if bank_name: profile.bank_name = bank_name
             if bik: profile.bik = bik
             if rs: profile.rs = rs
             if ks: profile.ks = ks
             if logo: profile.logo = logo
         else:
-            db.add(Profile(chat_id=chat_id, company=company, inn=inn, address=address, contacts=contacts, director=director, director_rod=director_rod, director_pos=director_pos, bank_name=bank_name, bik=bik, rs=rs, ks=ks, logo=logo))
+            db.add(Profile(chat_id=chat_id, company=company, inn=inn, kpp=kpp, address=address, contacts=contacts, director=director, director_rod=director_rod, director_pos=director_pos, director_pos_nom=director_pos_nom, bank_name=bank_name, bik=bik, rs=rs, ks=ks, logo=logo))
         db.commit()
         return {"status": "ok"}
     except Exception as e: return {"status": "error", "message": str(e)}
@@ -124,12 +127,12 @@ async def save_profile(
 
 @app.post("/generate-doc")
 async def generate_doc(
-    template: str = Form("kp"), company: str = Form("ООО Ваша компания"), inn: str = Form("0000000000"), 
+    template: str = Form("kp"), company: str = Form("ООО Ваша компания"), inn: str = Form("0000000000"), kpp: str = Form(""), 
     address: str = Form("г. Москва"), contacts: str = Form("+7 (999) 999-99-99"), 
-    director: str = Form("Иванов И.И."), director_rod: str = Form("Иванова И.И."), director_pos: str = Form("Генерального директора"),
+    director: str = Form("Иванов И.И."), director_rod: str = Form("Иванова И.И."), director_pos: str = Form("Генерального директора"), director_pos_nom: str = Form("Генеральный директор"),
     services_json: str = Form("[]"), term: str = Form("30"), dogovor_number: str = Form("Б/Н"), dogovor_date: str = Form(""), 
     customer_name: str = Form("ООО Заказчик"), customer_inn: str = Form("1111111111"), customer_address: str = Form("г. Москва"), 
-    customer_director: str = Form("Петров П.П."), customer_director_rod: str = Form("Петрова П.П."), customer_pos: str = Form("Представителя"),
+    customer_director: str = Form("Петров П.П."), customer_director_rod: str = Form("Петрова П.П."), customer_pos: str = Form("Генерального директора"),
     smeta_date: str = Form(""), smeta_appendix: str = Form("1"), chat_id: str = Form(None), logo: str = Form(None),
     bank_name: str = Form(None), bik: str = Form(None), rs: str = Form(None), ks: str = Form(None)
 ):
@@ -141,19 +144,27 @@ async def generate_doc(
         smeta_date_to_use = smeta_date if smeta_date else current_date
         buffer = io.BytesIO()
         nds_text = "НДС не облагается на основании п. 2 ст. 346.11 НК РФ (УСН)"
-        header_html = get_header_html(company, inn, address, contacts, logo)
+        header_html = get_header_html(company, inn, kpp, address, contacts, logo)
 
         # --- КП ---
         if template == "kp":
             rows = "".join([f"<tr><td style='text-align:center;'>{i+1}</td><td>{s['name']}</td><td style='text-align:center;'>{term} дн.</td><td style='text-align:right;'>{format_money(float(s['price'])*int(s['qty']))} руб.</td></tr>" for i, s in enumerate(services)])
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
-            {header_html}<table class="meta"><tr><td style="text-align:right;">Исх. № {dogovor_number} от {date_to_use} г.</td></tr></table>
+            {header_html}
+            <table class="meta">
+                <tr><td style="text-align:left;">Исх. № {dogovor_number} от {date_to_use} г.</td></tr>
+                <tr><td style="text-align:right; padding-top:10px;"><strong>Кому:</strong><br>{customer_pos} {customer_name}<br>{customer_director}</td></tr>
+            </table>
             <h1 class="title">Коммерческое предложение<br>на оказание услуг</h1>
             <p>Уважаемый клиент! {company} предлагает вам следующие услуги:</p>
             <table><tr><th style="text-align:center; width: 5%;">№</th><th style="width: 60%;">Наименование услуги</th><th style="text-align:center; width: 15%;">Срок</th><th style="text-align:right; width: 20%;">Стоимость</th></tr>{rows}</table>
             <p style="text-align:right; margin-top: 10px; text-indent: 0;"><strong>Итого: {format_money(total_price)} руб.</strong><br>({nds_text})</p>
-            <p>1. КП действительно 14 дней.<br>2. Оплата 100% постоплата.<br>3. Не является офертой (ст. 435 ГК РФ).</p>
-            <div class="signature-block"><strong>С уважением,</strong><br><br>{director_pos}<br>{company}<br><br><br>_______________ / {director} /</div>
+            
+            <p class="list-item">1. КП действительно 14 дней.</p>
+            <p class="list-item">2. Оплата 100% постоплата.</p>
+            <p class="list-item">3. Не является офертой (ст. 435 ГК РФ).</p>
+            
+            <div class="signature-block"><strong>С уважением,</strong><br><br>{director_pos_nom}<br>{company}<br><br><br>_______________ / {director} /<br>М.П.</div>
             </body></html>"""
             pisa.CreatePDF(html, dest=buffer)
 
@@ -165,13 +176,14 @@ async def generate_doc(
             <h1 class="title">Смета № {smeta_appendix}</h1>
             <table><tr><th style="text-align:center; width: 5%;">№</th><th style="width: 45%;">Наименование</th><th style="text-align:center; width: 10%;">Ед.</th><th style="text-align:center; width: 10%;">Кол-во</th><th style="text-align:right; width: 15%;">Цена</th><th style="text-align:right; width: 15%;">Сумма</th></tr>{rows}<tr><td colspan="5" style="text-align:right;font-weight:bold;">Всего:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr></table>
             <p><strong>Всего наименований {len(services)}, на сумму {format_money(total_price)} руб.</strong> {nds_text}.</p>
-            <table style="width: 100%; border: none; margin-top: 30px; text-indent: 0;"><tr><td style="border: none; width: 50%;"><strong>Исполнитель:</strong><br>{company}<br><br><br>_______________ / {director} /<br>М.П.</td><td style="border: none; width: 50%;"><strong>Заказчик:</strong><br>{customer_name}<br><br><br>_______________ / {customer_director} /<br>М.П.</td></tr></table>
+            <table style="width: 100%; border: none; margin-top: 30px; text-indent: 0;"><tr><td style="border: none; width: 50%;"><strong>Исполнитель:</strong><br>{company}<br><br><br>{director_pos_nom}<br>_______________ / {director} /<br>М.П.</td><td style="border: none; width: 50%;"><strong>Заказчик:</strong><br>{customer_name}<br><br><br>{customer_pos}<br>_______________ / {customer_director} /<br>М.П.</td></tr></table>
             </body></html>"""
             pisa.CreatePDF(html, dest=buffer)
 
         # --- ДОГОВОР ---
         elif template == "dogovor":
             first_service = services[0]['name'] if services else "Услуги"
+            kpp_str = f", КПП: {kpp}" if kpp else ""
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
             <h1 class="title">ДОГОВОР ОКАЗАНИЯ УСЛУГ № {dogovor_number}</h1>
             <table class="meta"><tr><td style="text-align: left;">г. Москва</td><td style="text-align: right;">{date_to_use} г.</td></tr></table>
@@ -190,7 +202,7 @@ async def generate_doc(
             <table style="width: 100%; border: none; margin-top: 20px; text-indent: 0;">
                 <tr>
                     <td style="border: none; width: 50%; vertical-align: top; padding-right: 10px;">
-                        <strong>Исполнитель:</strong><br>{company}<br>ИНН: {inn}<br>Адрес: {address}<br><br>{director_pos}<br><br>_______________ / {director} /<br>М.П.
+                        <strong>Исполнитель:</strong><br>{company}<br>ИНН: {inn}{kpp_str}<br>Адрес: {address}<br><br>{director_pos_nom}<br><br>_______________ / {director} /<br>М.П.
                     </td>
                     <td style="border: none; width: 50%; vertical-align: top; padding-left: 10px;">
                         <strong>Заказчик:</strong><br>{customer_name}<br>ИНН: {customer_inn}<br>Адрес: {customer_address}<br><br>{customer_pos}<br><br>_______________ / {customer_director} /<br>М.П.
@@ -203,6 +215,7 @@ async def generate_doc(
         # --- АКТ ---
         elif template == "act":
             rows = "".join([f"<tr><td style='text-align:center;'>{i+1}</td><td>{s['name']}</td><td style='text-align:center;'>усл.</td><td style='text-align:center;'>{s['qty']}</td><td style='text-align:right;'>{format_money(float(s['price']))}</td><td style='text-align:right;'>{format_money(float(s['price'])*int(s['qty']))}</td></tr>" for i, s in enumerate(services)])
+            kpp_str = f", КПП: {kpp}" if kpp else ""
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
             <h1 class="title">АКТ СДАЧИ-ПРИЕМКИ ОКАЗАННЫХ УСЛУГ № {smeta_appendix}</h1>
             <table class="meta"><tr><td style="text-align: left;">г. Москва</td><td style="text-align: right;">{smeta_date_to_use} г.</td></tr></table>
@@ -212,7 +225,7 @@ async def generate_doc(
             <p>Претензий по объему, качеству и срокам оказания Услуг Заказчик не имеет.</p>
             <table style="width: 100%; border: none; margin-top: 40px; text-indent: 0;">
                 <tr>
-                    <td style="border: none; width: 50%; vertical-align: top; padding-right: 10px;"><strong>Исполнитель:</strong><br>{company}<br>ИНН: {inn}<br>Адрес: {address}<br><br>{director_pos}<br><br>_______________ / {director} /<br>М.П.</td>
+                    <td style="border: none; width: 50%; vertical-align: top; padding-right: 10px;"><strong>Исполнитель:</strong><br>{company}<br>ИНН: {inn}{kpp_str}<br>Адрес: {address}<br><br>{director_pos_nom}<br><br>_______________ / {director} /<br>М.П.</td>
                     <td style="border: none; width: 50%; vertical-align: top; padding-left: 10px;"><strong>Заказчик:</strong><br>{customer_name}<br>ИНН: {customer_inn}<br>Адрес: {customer_address}<br><br>{customer_pos}<br><br>_______________ / {customer_director} /<br>М.П.</td>
                 </tr>
             </table>
@@ -221,15 +234,28 @@ async def generate_doc(
 
         # --- СЧЕТ ---
         elif template == "invoice":
-            rows = "".join([f"<tr><td style='text-align:center;'>{i+1}</td><td>{s['name']}</td><td style='text-align:center;'>шт</td><td style='text-align:center;'>{s['qty']}</td><td style='text-align:right;'>{format_money(float(s['price']))}</td><td style='text-align:right;'>{format_money(float(s['price'])*int(s['qty']))}</td></tr>" for i, s in enumerate(services)])
+            rows = "".join([f"<tr><td style='text-align:center;'>{i+1}</td><td>{s['name']}</td><td style='text-align:center;'>усл.</td><td style='text-align:center;'>{s['qty']}</td><td style='text-align:right;'>{format_money(float(s['price']))}</td><td style='text-align:right;'>{format_money(float(s['price'])*int(s['qty']))}</td></tr>" for i, s in enumerate(services)])
             sum_propis = num2words_rub(total_price)
+            kpp_str = f", КПП: {kpp}" if kpp else ""
+            bank_table = f"""
+            <table style="width: 100%; border-collapse: collapse; text-indent: 0; font-size: 10pt; margin-bottom: 20px;">
+                <tr><td style="border: 1px solid #000; padding: 5px; width: 15%;">Банк получателя:</td><td style="border: 1px solid #000; padding: 5px;" colspan="3">{bank_name or "____________________"}</td></tr>
+                <tr><td style="border: 1px solid #000; padding: 5px;">БИК:</td><td style="border: 1px solid #000; padding: 5px; width: 35%;">{bik or "__________"}</td><td style="border: 1px solid #000; padding: 5px; width: 15%;">Сч. №:</td><td style="border: 1px solid #000; padding: 5px;">{ks or "____________________"}</td></tr>
+                <tr><td style="border: 1px solid #000; padding: 5px;">Получатель:</td><td style="border: 1px solid #000; padding: 5px;" colspan="3">{company}<br>ИНН {inn}{kpp_str}</td></tr>
+                <tr><td style="border: 1px solid #000; padding: 5px;">Р/с:</td><td style="border: 1px solid #000; padding: 5px;" colspan="3">{rs or "____________________"}</td></tr>
+            </table>
+            """
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
             {header_html}
-            <h1 class="title" style="margin-top:20px;">Счет на оплату № {dogovor_number} от {smeta_date_to_use} г.</h1>
-            <table class="meta" style="margin-bottom: 10px;">
-                <tr><td style="text-align: left;"><strong>Поставщик (Исполнитель):</strong><br>{company}, ИНН {inn}, {address}</td></tr>
-                <tr><td style="text-align: left; padding-top: 10px;"><strong>Покупатель (Заказчик):</strong><br>{customer_name}, ИНН {customer_inn}, {customer_address}</td></tr>
+            {bank_table}
+            <h1 class="title">Счет на оплату № {dogovor_number} от {smeta_date_to_use} г.</h1>
+            
+            <table class="meta" style="margin-bottom: 15px;">
+                <tr><td style="text-align: left;"><strong>Поставщик (Исполнитель):</strong><br>{company}, ИНН {inn}{kpp_str}, {address}</td></tr>
+                <tr><td style="text-align: left; padding-top: 5px;"><strong>Покупатель (Заказчик):</strong><br>{customer_name}, ИНН {customer_inn}, {customer_address}</td></tr>
+                <tr><td style="text-align: left; padding-top: 5px;"><strong>Основание:</strong> Договор № {dogovor_number} от {date_to_use} г.</td></tr>
             </table>
+
             <table>
                 <tr><th style="text-align:center; width: 5%;">№</th><th style="width: 45%;">Наименование</th><th style="text-align:center; width: 10%;">Ед.</th><th style="text-align:center; width: 10%;">Кол-во</th><th style="text-align:right; width: 15%;">Цена</th><th style="text-align:right; width: 15%;">Сумма</th></tr>
                 {rows}
@@ -237,16 +263,11 @@ async def generate_doc(
                 <tr><td colspan="5" style="text-align:right;font-weight:bold;">{nds_text}</td><td style="text-align:right;font-weight:bold;">0,00</td></tr>
                 <tr><td colspan="5" style="text-align:right;font-weight:bold;">Всего к оплате:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr>
             </table>
+            
             <p style="margin-top:20px; text-indent: 0;"><strong>Всего наименований {len(services)}, на сумму {format_money(total_price)} руб.</strong></p>
             <p style="text-indent: 0;"><strong>Сумма прописью:</strong> {sum_propis}.</p>
-            <div class="section-title">Банковские реквизиты для оплаты:</div>
-            <table style="width: 100%; border: none; text-indent: 0; font-size: 10pt;">
-                <tr><td style="border:none; width: 30%;">Банк:</td><td style="border:none;">{bank_name or "____________________"}</td></tr>
-                <tr><td style="border:none;">БИК:</td><td style="border:none;">{bik or "__________"}</td></tr>
-                <tr><td style="border:none;">Расчетный счет:</td><td style="border:none;">{rs or "____________________"}</td></tr>
-                <tr><td style="border:none;">Корр. счет:</td><td style="border:none;">{ks or "____________________"}</td></tr>
-            </table>
-            <table style="width: 100%; border: none; margin-top: 30px; text-indent: 0;">
+
+            <table style="width: 100%; border: none; margin-top: 40px; text-indent: 0;">
                 <tr>
                     <td style="border: none; width: 50%; vertical-align: top; padding-right: 10px;"><strong>Руководитель:</strong><br><br><br>_______________ / {director} /<br><br>М.П.</td>
                     <td style="border: none; width: 50%; vertical-align: top; padding-left: 10px;"><strong>Главный бухгалтер:</strong><br><br><br>_______________ / {director} /</td>
