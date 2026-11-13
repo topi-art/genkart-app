@@ -9,55 +9,80 @@
         :root { --bg: #121212; --card: #1e1e1e; --text: #ffffff; --muted: #888888; --accent: #ff2a75; --accent-txt: #ffffff; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
         body { background: var(--bg); color: var(--text); padding: 16px; padding-bottom: 100px; }
+        
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .logo { font-size: 20px; font-weight: 800; } .logo span { color: var(--accent); }
+        
         .step-card { background: var(--card); border-radius: 16px; padding: 20px; margin-bottom: 16px; border: 1px solid #2a2a2a; }
         .step-header { display: flex; align-items: center; margin-bottom: 16px; font-size: 16px; font-weight: 600; }
         .step-number { background: #333; color: var(--muted); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; margin-right: 10px; }
+        
         .input-text { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #333; background: #121212; color: white; margin-bottom: 10px; font-size: 14px; }
         .input-text::placeholder { color: #555; }
+        
         .templates { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
         .tpl-btn { flex: 1; min-width: 30%; padding: 10px; background: #121212; color: var(--muted); border: 1px solid #333; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 12px; text-align: center; }
         .tpl-btn.active { background: #2a2a2a; color: var(--accent); border-color: var(--accent); }
+
         .btn-generate { background: var(--accent); color: var(--accent-txt); border: none; width: 100%; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; margin-bottom: 10px; }
         .btn-secondary { background: #333; color: #fff; border: none; width: 100%; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 15px; }
+        
         .dynamic-fields { display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid #333; }
         .dynamic-fields.active { display: block; }
+        
         .status-text { font-size: 13px; color: var(--accent); text-align: center; margin-top: 10px; }
         .disclaimer { font-size: 11px; color: #777; text-align: center; margin-top: 20px; line-height: 1.4; padding: 0 10px; }
+
         .service-row { display: flex; gap: 8px; margin-bottom: 8px; }
         .service-row input { margin-bottom: 0; }
         .service-row .input-name { flex: 3; }
         .service-row .input-qty { flex: 1; min-width: 50px; }
         .service-row .input-price { flex: 2; }
         .btn-remove { background: #ff2a75; color: white; border: none; border-radius: 8px; padding: 0 10px; cursor: pointer; font-weight: bold; }
+
         #logoPreview { max-width: 100px; max-height: 50px; display: none; margin-bottom: 10px; border-radius: 5px; background: #fff; padding: 2px; }
     </style>
 </head>
 <body>
     <div class="header"><div class="logo">Gen<span>Doc</span></div></div>
 
+    <!-- ПРОФИЛЬ -->
     <div id="profileSection" class="step-card">
         <div class="step-header"><div class="step-number">1</div>Профиль компании</div>
+        
         <input type="text" id="companyInput" class="input-text" placeholder="Название компании" value="ООО Тест">
+        
         <div style="display: flex; gap: 10px;">
             <input type="text" id="innInput" class="input-text" placeholder="ИНН" value="1234567890">
             <button class="btn-secondary" style="width: auto; white-space: nowrap; margin-bottom: 10px;" onclick="fetchCompanyData()">Найти по ИНН</button>
         </div>
-        <input type="text" id="addressInput" class="input-text" placeholder="Юридический адрес (с индексом)" value="123456, г. Москва, ул. Ленина, д. 1">
+
+        <input type="text" id="kppInput" class="input-text" placeholder="КПП" value="123401001">
+        <input type="text" id="addressInput" class="input-text" placeholder="Юридический адрес" value="123456, г. Москва, ул. Ленина, д. 1">
         <input type="text" id="contactInput" class="input-text" placeholder="Контакты" value="+7 999 999-99-99">
-        <input type="text" id="directorInput" class="input-text" placeholder="ФИО Директора (им. падеж: Иванов И.И.)" value="Иванов И.И.">
-        <input type="text" id="directorRodInput" class="input-text" placeholder="ФИО Директора (род. падеж: Иванова И.И.)" value="Иванова И.И.">
-        <input type="text" id="directorPosInput" class="input-text" placeholder="Должность директора (Генерального директора)" value="Генерального директора">
         
+        <input type="text" id="directorInput" class="input-text" placeholder="ФИО Директора (им. падеж)" value="Иванов И.И.">
+        <input type="text" id="directorRodInput" class="input-text" placeholder="ФИО Директора (род. падеж)" value="Иванова И.И.">
+        <input type="text" id="directorPosInput" class="input-text" placeholder="Должность (род. падеж)" value="Генерального директора">
+        <input type="text" id="directorPosNomInput" class="input-text" placeholder="Должность (им. падеж)" value="Генеральный директор">
+        
+        <div class="step-header" style="margin-top: 15px; font-size: 14px;"><div class="step-number">₽</div>Банковские реквизиты</div>
+        <input type="text" id="bankNameInput" class="input-text" placeholder="Название банка" value="ПАО СБЕРБАНК">
+        <input type="text" id="bikInput" class="input-text" placeholder="БИК" value="044525225">
+        <input type="text" id="rsInput" class="input-text" placeholder="Расчетный счет" value="40702810000000000000">
+        <input type="text" id="ksInput" class="input-text" placeholder="Корр. счет" value="30101810400000000225">
+
         <input type="file" id="logoInput" accept="image/*" style="display: none;" onchange="previewLogo()">
         <button class="btn-secondary" onclick="document.getElementById('logoInput').click()">📷 Загрузить логотип</button>
         <img id="logoPreview" src="" alt="Логотип">
+
         <button class="btn-generate" id="btnSaveProfile" style="background: #444;">Сохранить профиль</button>
     </div>
 
+    <!-- ДОКУМЕНТЫ -->
     <div id="generateSection" class="step-card">
         <div class="step-header"><div class="step-number">2</div>Данные документа</div>
+        
         <div class="templates">
             <button class="tpl-btn active" onclick="setTemplate('kp', this)">КП</button>
             <button class="tpl-btn" onclick="setTemplate('smeta', this)">Смета</button>
@@ -68,7 +93,7 @@
 
         <div id="servicesContainer">
             <div class="service-row">
-                <input type="text" class="input-text input-name" placeholder="Наименование услуги" value="Транспортировка">
+                <input type="text" class="input-text input-name" placeholder="Услуга" value="Транспортировка">
                 <input type="text" class="input-text input-qty" placeholder="Кол-во" value="1">
                 <input type="text" class="input-text input-price" placeholder="Цена" value="10000">
                 <button class="btn-remove" onclick="removeService(this)">×</button>
@@ -77,9 +102,10 @@
         <button class="btn-secondary" onclick="addService()" style="margin-top: 5px;">+ Добавить услугу</button>
         <input type="text" id="termInput" class="input-text" placeholder="Сроки (дней)" value="30" style="margin-top: 10px;">
 
+        <!-- ПОЛЯ ЗАКАЗЧИКА -->
         <div id="dogovorFields" class="dynamic-fields">
             <input type="text" id="dogovorNumber" class="input-text" placeholder="Номер договора" value="15/26">
-            <input type="text" id="dogovorDate" class="input-text" placeholder="Дата договора (12.11.2026)" value="12.11.2026">
+            <input type="text" id="dogovorDate" class="input-text" placeholder="Дата договора" value="12.11.2026">
             <input type="text" id="customerName" class="input-text" placeholder="Наименование Заказчика" value="ООО Заказчик">
             <input type="text" id="customerInn" class="input-text" placeholder="ИНН Заказчика" value="0987654321">
             <input type="text" id="customerAddress" class="input-text" placeholder="Адрес Заказчика" value="654321, г. Казань, ул. Пушкина, д. 2">
@@ -91,13 +117,17 @@
         <div id="smetaFields" class="dynamic-fields">
             <input type="text" id="smetaNumber" class="input-text" placeholder="Номер договора" value="15/26">
             <input type="text" id="smetaDate" class="input-text" placeholder="Дата документа" value="12.11.2026">
-            <input type="text" id="smetaAppendix" class="input-text" placeholder="Номер приложения (1, 2...)" value="1">
+            <input type="text" id="smetaAppendix" class="input-text" placeholder="Номер приложения" value="1">
             <input type="text" id="smetaCustomerName" class="input-text" placeholder="Наименование Заказчика" value="ООО Заказчик">
             <input type="text" id="smetaCustomerDirector" class="input-text" placeholder="ФИО представителя" value="Петров П.П.">
         </div>
 
         <button class="btn-generate" id="btnGenerateDoc" style="margin-top: 15px;">Создать документ 📄</button>
-        <div class="disclaimer">⚠️ <b>Внимание!</b> Бот использует шаблоны и может допускать ошибки. Обязательно проверяйте итоговый файл.</div>
+        
+        <div class="disclaimer">
+            ⚠️ <b>Внимание!</b> Бот использует шаблоны и может допускать ошибки. Сгенерированный документ не является юридической консультацией. Обязательно проверяйте итоговый файл перед использованием.
+        </div>
+
         <div class="status-text" id="statusText"></div>
     </div>
 
@@ -138,11 +168,17 @@
                 if (data.status === "ok") {
                     document.getElementById('companyInput').value = data.company;
                     document.getElementById('innInput').value = data.inn;
+                    document.getElementById('kppInput').value = data.kpp || "";
                     document.getElementById('addressInput').value = data.address;
                     document.getElementById('contactInput').value = data.contacts;
                     document.getElementById('directorInput').value = data.director || "Иванов И.И.";
                     document.getElementById('directorRodInput').value = data.director_rod || "Иванова И.И.";
                     document.getElementById('directorPosInput').value = data.director_pos || "Генерального директора";
+                    document.getElementById('directorPosNomInput').value = data.director_pos_nom || "Генеральный директор";
+                    document.getElementById('bankNameInput').value = data.bank_name || "";
+                    document.getElementById('bikInput').value = data.bik || "";
+                    document.getElementById('rsInput').value = data.rs || "";
+                    document.getElementById('ksInput').value = data.ks || "";
                     if (data.logo) { logoBase64 = data.logo; document.getElementById('logoPreview').src = logoBase64; document.getElementById('logoPreview').style.display = 'block'; }
                 }
             } catch (e) {}
@@ -155,17 +191,18 @@
             const btn = event.target; btn.textContent = "Поиск...";
             try {
                 const res = await fetch(`https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Token 8f5d4c3b2a1e0f9d8c7b6a5f4e3d2c1b0a9f8e7d' },
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Token 03b8cf0f4550f0c15403feb88d0eb58bfba8af06' },
                     body: JSON.stringify({ query: inn })
                 });
                 const data = await res.json();
                 if (data.suggestions && data.suggestions.length > 0) {
                     const comp = data.suggestions[0].data;
                     document.getElementById('companyInput').value = comp.name.short_with_opf;
+                    document.getElementById('kppInput').value = comp.kpp || "";
                     document.getElementById('addressInput').value = comp.address ? comp.address.value : "";
                     if (comp.management) {
                         document.getElementById('directorInput').value = comp.management.name;
-                        document.getElementById('directorRodInput').value = comp.management.name; // В идеале тут нужен склонятор
+                        document.getElementById('directorRodInput').value = comp.management.name; 
                     }
                 } else { alert("Компания не найдена"); }
             } catch (e) { alert("Ошибка при поиске ИНН."); } finally { btn.textContent = "Найти по ИНН"; }
@@ -184,9 +221,12 @@
             const btn = document.getElementById('btnSaveProfile'); btn.textContent = "Сохранение...";
             const fd = new FormData();
             fd.append('chat_id', chatId); fd.append('company', document.getElementById('companyInput').value);
-            fd.append('inn', document.getElementById('innInput').value); fd.append('address', document.getElementById('addressInput').value);
-            fd.append('contacts', document.getElementById('contactInput').value); fd.append('director', document.getElementById('directorInput').value);
-            fd.append('director_rod', document.getElementById('directorRodInput').value); fd.append('director_pos', document.getElementById('directorPosInput').value);
+            fd.append('inn', document.getElementById('innInput').value); fd.append('kpp', document.getElementById('kppInput').value);
+            fd.append('address', document.getElementById('addressInput').value); fd.append('contacts', document.getElementById('contactInput').value);
+            fd.append('director', document.getElementById('directorInput').value); fd.append('director_rod', document.getElementById('directorRodInput').value);
+            fd.append('director_pos', document.getElementById('directorPosInput').value); fd.append('director_pos_nom', document.getElementById('directorPosNomInput').value);
+            fd.append('bank_name', document.getElementById('bankNameInput').value); fd.append('bik', document.getElementById('bikInput').value);
+            fd.append('rs', document.getElementById('rsInput').value); fd.append('ks', document.getElementById('ksInput').value);
             if (logoBase64) fd.append('logo', logoBase64);
             try {
                 const res = await fetch('https://genkart-app.onrender.com/save-profile', { method: 'POST', body: fd });
@@ -209,9 +249,12 @@
             const fd = new FormData();
             fd.append('chat_id', chatId); fd.append('template', currentTemplate);
             fd.append('company', document.getElementById('companyInput').value); fd.append('inn', document.getElementById('innInput').value);
+            fd.append('kpp', document.getElementById('kppInput').value);
             fd.append('address', document.getElementById('addressInput').value); fd.append('contacts', document.getElementById('contactInput').value);
             fd.append('director', document.getElementById('directorInput').value); fd.append('director_rod', document.getElementById('directorRodInput').value);
-            fd.append('director_pos', document.getElementById('directorPosInput').value);
+            fd.append('director_pos', document.getElementById('directorPosInput').value); fd.append('director_pos_nom', document.getElementById('directorPosNomInput').value);
+            fd.append('bank_name', document.getElementById('bankNameInput').value); fd.append('bik', document.getElementById('bikInput').value);
+            fd.append('rs', document.getElementById('rsInput').value); fd.append('ks', document.getElementById('ksInput').value);
             fd.append('term', document.getElementById('termInput').value); fd.append('services_json', JSON.stringify(services));
             if (logoBase64) fd.append('logo', logoBase64);
 
