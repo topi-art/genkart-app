@@ -8,7 +8,6 @@
     <style>
         :root { --bg: #121212; --card: #1e1e1e; --text: #ffffff; --muted: #888888; --accent: #ff2a75; --accent-txt: #ffffff; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        /* Увеличили нижний отступ (padding-bottom), чтобы текст предупреждения не перекрывался */
         body { background: var(--bg); color: var(--text); padding: 16px; padding-bottom: 100px; }
         
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
@@ -22,32 +21,55 @@
         .input-text::placeholder { color: #555; }
         
         .templates { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
-        .tpl-btn { flex: 1; min-width: 45%; padding: 12px; background: #121212; color: var(--muted); border: 1px solid #333; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; text-align: center; }
+        .tpl-btn { flex: 1; min-width: 30%; padding: 10px; background: #121212; color: var(--muted); border: 1px solid #333; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 12px; text-align: center; }
         .tpl-btn.active { background: #2a2a2a; color: var(--accent); border-color: var(--accent); }
 
         .btn-generate { background: var(--accent); color: var(--accent-txt); border: none; width: 100%; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; margin-bottom: 10px; }
+        .btn-secondary { background: #333; color: #fff; border: none; width: 100%; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 15px; }
         
         .dynamic-fields { display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid #333; }
         .dynamic-fields.active { display: block; }
         
         .status-text { font-size: 13px; color: var(--accent); text-align: center; margin-top: 10px; }
-        
-        /* Стили для юридического предупреждения */
         .disclaimer { font-size: 11px; color: #777; text-align: center; margin-top: 20px; line-height: 1.4; padding: 0 10px; }
+
+        .service-row { display: flex; gap: 8px; margin-bottom: 8px; }
+        .service-row input { margin-bottom: 0; }
+        .service-row .input-name { flex: 3; }
+        .service-row .input-qty { flex: 1; min-width: 50px; }
+        .service-row .input-price { flex: 2; }
+        .btn-remove { background: #ff2a75; color: white; border: none; border-radius: 8px; padding: 0 10px; cursor: pointer; font-weight: bold; }
+
+        /* Стили для логотипа */
+        #logoPreview { max-width: 100px; max-height: 50px; display: none; margin-bottom: 10px; border-radius: 5px; background: #fff; padding: 2px; }
     </style>
 </head>
 <body>
     <div class="header"><div class="logo">Gen<span>Doc</span></div></div>
 
+    <!-- ПРОФИЛЬ -->
     <div id="profileSection" class="step-card">
         <div class="step-header"><div class="step-number">1</div>Профиль компании</div>
+        
         <input type="text" id="companyInput" class="input-text" placeholder="Название компании" value="ООО Тест">
-        <input type="text" id="innInput" class="input-text" placeholder="ИНН / КПП" value="1234567890">
+        
+        <div style="display: flex; gap: 10px;">
+            <input type="text" id="innInput" class="input-text" placeholder="ИНН" value="1234567890">
+            <button class="btn-secondary" style="width: auto; white-space: nowrap; margin-bottom: 10px;" onclick="fetchCompanyData()">Найти по ИНН</button>
+        </div>
+
         <input type="text" id="addressInput" class="input-text" placeholder="Юридический адрес" value="г. Москва">
         <input type="text" id="contactInput" class="input-text" placeholder="Контакты" value="+7 999 999-99-99">
+        <input type="text" id="directorInput" class="input-text" placeholder="ФИО Директора" value="Иванов И.И.">
+        
+        <input type="file" id="logoInput" accept="image/*" style="display: none;" onchange="previewLogo()">
+        <button class="btn-secondary" onclick="document.getElementById('logoInput').click()">📷 Загрузить логотип</button>
+        <img id="logoPreview" src="" alt="Логотип">
+
         <button class="btn-generate" id="btnSaveProfile" style="background: #444;">Сохранить профиль</button>
     </div>
 
+    <!-- ДОКУМЕНТЫ -->
     <div id="generateSection" class="step-card">
         <div class="step-header"><div class="step-number">2</div>Данные документа</div>
         
@@ -55,35 +77,44 @@
             <button class="tpl-btn active" onclick="setTemplate('kp', this)">КП</button>
             <button class="tpl-btn" onclick="setTemplate('smeta', this)">Смета</button>
             <button class="tpl-btn" onclick="setTemplate('dogovor', this)">Договор</button>
+            <button class="tpl-btn" onclick="setTemplate('act', this)">Акт</button>
+            <button class="tpl-btn" onclick="setTemplate('invoice', this)">Счет</button>
         </div>
 
-        <input type="text" id="serviceInput" class="input-text" placeholder="Услуга / Наименование" value="Транспортировка">
-        <input type="text" id="priceInput" class="input-text" placeholder="Цена (руб.)" value="10000">
-        <input type="text" id="termInput" class="input-text" placeholder="Сроки (дней)" value="30">
+        <!-- Контейнер для услуг -->
+        <div id="servicesContainer">
+            <div class="service-row">
+                <input type="text" class="input-text input-name" placeholder="Наименование услуги" value="Транспортировка">
+                <input type="text" class="input-text input-qty" placeholder="Кол-во" value="1">
+                <input type="text" class="input-text input-price" placeholder="Цена" value="10000">
+                <button class="btn-remove" onclick="removeService(this)">×</button>
+            </div>
+        </div>
+        <button class="btn-secondary" onclick="addService()" style="margin-top: 5px;">+ Добавить услугу</button>
 
-        <!-- ПОЛЯ ДЛЯ ДОГОВОРА -->
+        <input type="text" id="termInput" class="input-text" placeholder="Сроки (дней)" value="30" style="margin-top: 10px;">
+
+        <!-- ДОГОВОР -->
         <div id="dogovorFields" class="dynamic-fields">
             <input type="text" id="dogovorNumber" class="input-text" placeholder="Номер договора" value="15/26">
             <input type="text" id="dogovorDate" class="input-text" placeholder="Дата договора" value="12.11.2026">
             <input type="text" id="customerName" class="input-text" placeholder="Наименование Заказчика" value="ООО Заказчик">
             <input type="text" id="customerInn" class="input-text" placeholder="ИНН Заказчика" value="0987654321">
             <input type="text" id="customerAddress" class="input-text" placeholder="Адрес Заказчика" value="г. Москва">
-            <input type="text" id="directorName" class="input-text" placeholder="ФИО Директора (Исполнителя)" value="Иванов И.И.">
             <input type="text" id="customerDirector" class="input-text" placeholder="ФИО представителя Заказчика" value="Петров П.П.">
         </div>
 
-        <!-- ПОЛЯ ДЛЯ СМЕТЫ -->
+        <!-- СМЕТА / АКТ / СЧЕТ -->
         <div id="smetaFields" class="dynamic-fields">
             <input type="text" id="smetaNumber" class="input-text" placeholder="Номер договора" value="15/26">
-            <input type="text" id="smetaDate" class="input-text" placeholder="Дата сметы" value="12.11.2026">
-            <input type="text" id="smetaAppendix" class="input-text" placeholder="Номер приложения (например, 1)" value="1">
+            <input type="text" id="smetaDate" class="input-text" placeholder="Дата документа" value="12.11.2026">
+            <input type="text" id="smetaAppendix" class="input-text" placeholder="Номер приложения (для Сметы)" value="1">
             <input type="text" id="smetaCustomerName" class="input-text" placeholder="Наименование Заказчика" value="ООО Заказчик">
             <input type="text" id="smetaCustomerDirector" class="input-text" placeholder="ФИО представителя Заказчика" value="Петров П.П.">
         </div>
         
-        <button class="btn-generate" id="btnGenerateDoc">Создать документ 📄</button>
+        <button class="btn-generate" id="btnGenerateDoc" style="margin-top: 15px;">Создать документ 📄</button>
         
-        <!-- ЮРИДИЧЕСКОЕ ПРЕДУПРЕЖДЕНИЕ -->
         <div class="disclaimer">
             ⚠️ <b>Внимание!</b> Бот использует шаблоны и может допускать ошибки. Сгенерированный документ не является юридической консультацией. Обязательно проверяйте итоговый файл перед использованием.
         </div>
@@ -96,7 +127,42 @@
         const chatId = tg.initDataUnsafe?.user?.id;
         const statusText = document.getElementById('statusText');
         let currentTemplate = 'kp';
+        let logoBase64 = "";
 
+        // --- ДОБАВЛЕНИЕ УСЛУГ ---
+        function addService() {
+            const container = document.getElementById('servicesContainer');
+            const row = document.createElement('div');
+            row.className = 'service-row';
+            row.innerHTML = `
+                <input type="text" class="input-text input-name" placeholder="Наименование" value="">
+                <input type="text" class="input-text input-qty" placeholder="Кол-во" value="1">
+                <input type="text" class="input-text input-price" placeholder="Цена" value="">
+                <button class="btn-remove" onclick="removeService(this)">×</button>
+            `;
+            container.appendChild(row);
+        }
+        function removeService(btn) {
+            if (document.querySelectorAll('.service-row').length > 1) {
+                btn.parentElement.remove();
+            }
+        }
+
+        // --- ЛОГОТИП ---
+        function previewLogo() {
+            const file = document.getElementById('logoInput').files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    logoBase64 = e.target.result;
+                    document.getElementById('logoPreview').src = logoBase64;
+                    document.getElementById('logoPreview').style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // --- ЗАГРУЗКА ПРОФИЛЯ ---
         async function loadProfile() {
             if (!chatId) return;
             try {
@@ -107,20 +173,67 @@
                     document.getElementById('innInput').value = data.inn;
                     document.getElementById('addressInput').value = data.address;
                     document.getElementById('contactInput').value = data.contacts;
+                    document.getElementById('directorInput').value = data.director || "Иванов И.И.";
+                    if (data.logo) {
+                        logoBase64 = data.logo;
+                        document.getElementById('logoPreview').src = logoBase64;
+                        document.getElementById('logoPreview').style.display = 'block';
+                    }
                 }
             } catch (e) { console.log("Профиль не загружен"); }
         }
         loadProfile();
 
+        // --- АВТОЗАПОЛНЕНИЕ ПО ИНН (DaData) ---
+        async function fetchCompanyData() {
+            const inn = document.getElementById('innInput').value;
+            if (inn.length < 10) { alert("Введите корректный ИНН"); return; }
+            
+            const btn = event.target;
+            btn.textContent = "Поиск...";
+            
+            try {
+                // Используем бесплатный API DaData (нужно заменить на свой токен, если лимиты исчерпаются)
+                const res = await fetch(`https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'Authorization': 'Token 8f5d4c3b2a1e0f9d8c7b6a5f4e3d2c1b0a9f8e7d' // <--- ТУТ НУЖЕН ВАШ ТОКЕН DADATA
+                    },
+                    body: JSON.stringify({ query: inn })
+                });
+                const data = await res.json();
+                
+                if (data.suggestions && data.suggestions.length > 0) {
+                    const company = data.suggestions[0].data;
+                    document.getElementById('companyInput').value = company.name.short_with_opf;
+                    document.getElementById('addressInput').value = company.address ? company.address.value : "";
+                    if (company.management) {
+                        document.getElementById('directorInput').value = company.management.name;
+                    }
+                } else {
+                    alert("Компания с таким ИНН не найдена");
+                }
+            } catch (e) {
+                alert("Ошибка при поиске ИНН. Проверьте токен DaData.");
+            } finally {
+                btn.textContent = "Найти по ИНН";
+            }
+        }
+
+        // --- ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК ---
         function setTemplate(tpl, btn) {
             currentTemplate = tpl;
             document.querySelectorAll('.tpl-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             document.querySelectorAll('.dynamic-fields').forEach(b => b.classList.remove('active'));
+            
             if (tpl === 'dogovor') document.getElementById('dogovorFields').classList.add('active');
-            if (tpl === 'smeta') document.getElementById('smetaFields').classList.add('active');
+            if (tpl === 'smeta' || tpl === 'act' || tpl === 'invoice') document.getElementById('smetaFields').classList.add('active');
         }
 
+        // --- СОХРАНЕНИЕ ПРОФИЛЯ ---
         document.getElementById('btnSaveProfile').addEventListener('click', async () => {
             const btn = document.getElementById('btnSaveProfile');
             btn.textContent = "Сохранение...";
@@ -131,6 +244,8 @@
             fd.append('inn', document.getElementById('innInput').value);
             fd.append('address', document.getElementById('addressInput').value);
             fd.append('contacts', document.getElementById('contactInput').value);
+            fd.append('director', document.getElementById('directorInput').value);
+            if (logoBase64) fd.append('logo', logoBase64);
 
             try {
                 const res = await fetch('https://genkart-app.onrender.com/save-profile', { method: 'POST', body: fd });
@@ -145,11 +260,27 @@
             }
         });
 
+        // --- ГЕНЕРАЦИЯ ДОКУМЕНТА ---
         document.getElementById('btnGenerateDoc').addEventListener('click', async () => {
             const btn = document.getElementById('btnGenerateDoc');
             btn.disabled = true;
             btn.textContent = "Отправка...";
             statusText.textContent = "Подождите, документ отправится в чат...";
+
+            // Собираем все услуги из динамической таблицы
+            const services = [];
+            document.querySelectorAll('.service-row').forEach(row => {
+                const name = row.querySelector('.input-name').value;
+                const qty = row.querySelector('.input-qty').value;
+                const price = row.querySelector('.input-price').value;
+                if (name && price) services.push({ name, qty, price });
+            });
+
+            if (services.length === 0) {
+                tg.showAlert("Добавьте хотя бы одну услугу!");
+                btn.disabled = false; btn.textContent = "Создать документ 📄";
+                return;
+            }
 
             const fd = new FormData();
             fd.append('chat_id', chatId);
@@ -158,14 +289,10 @@
             fd.append('inn', document.getElementById('innInput').value);
             fd.append('address', document.getElementById('addressInput').value);
             fd.append('contacts', document.getElementById('contactInput').value);
+            fd.append('director', document.getElementById('directorInput').value);
             fd.append('term', document.getElementById('termInput').value);
-
-            const serviceObj = [{
-                name: document.getElementById('serviceInput').value,
-                qty: 1,
-                price: document.getElementById('priceInput').value
-            }];
-            fd.append('services_json', JSON.stringify(serviceObj));
+            fd.append('services_json', JSON.stringify(services));
+            if (logoBase64) fd.append('logo', logoBase64);
 
             if (currentTemplate === 'dogovor') {
                 fd.append('dogovor_number', document.getElementById('dogovorNumber').value);
@@ -173,10 +300,9 @@
                 fd.append('customer_name', document.getElementById('customerName').value);
                 fd.append('customer_inn', document.getElementById('customerInn').value);
                 fd.append('customer_address', document.getElementById('customerAddress').value);
-                fd.append('director_name', document.getElementById('directorName').value);
                 fd.append('customer_director', document.getElementById('customerDirector').value);
             }
-            if (currentTemplate === 'smeta') {
+            if (currentTemplate === 'smeta' || currentTemplate === 'act' || currentTemplate === 'invoice') {
                 fd.append('dogovor_number', document.getElementById('smetaNumber').value);
                 fd.append('smeta_date', document.getElementById('smetaDate').value);
                 fd.append('smeta_appendix', document.getElementById('smetaAppendix').value);
