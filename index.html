@@ -8,7 +8,8 @@
     <style>
         :root { --bg: #121212; --card: #1e1e1e; --text: #ffffff; --muted: #888888; --accent: #ff2a75; --accent-txt: #ffffff; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        body { background: var(--bg); color: var(--text); padding: 16px; padding-bottom: 80px; }
+        /* Увеличили нижний отступ (padding-bottom), чтобы текст предупреждения не перекрывался */
+        body { background: var(--bg); color: var(--text); padding: 16px; padding-bottom: 100px; }
         
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .logo { font-size: 20px; font-weight: 800; } .logo span { color: var(--accent); }
@@ -30,6 +31,9 @@
         .dynamic-fields.active { display: block; }
         
         .status-text { font-size: 13px; color: var(--accent); text-align: center; margin-top: 10px; }
+        
+        /* Стили для юридического предупреждения */
+        .disclaimer { font-size: 11px; color: #777; text-align: center; margin-top: 20px; line-height: 1.4; padding: 0 10px; }
     </style>
 </head>
 <body>
@@ -78,6 +82,12 @@
         </div>
         
         <button class="btn-generate" id="btnGenerateDoc">Создать документ 📄</button>
+        
+        <!-- ЮРИДИЧЕСКОЕ ПРЕДУПРЕЖДЕНИЕ -->
+        <div class="disclaimer">
+            ⚠️ <b>Внимание!</b> Бот использует шаблоны и может допускать ошибки. Сгенерированный документ не является юридической консультацией. Обязательно проверяйте итоговый файл перед использованием.
+        </div>
+
         <div class="status-text" id="statusText"></div>
     </div>
 
