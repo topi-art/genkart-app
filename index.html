@@ -72,6 +72,7 @@
         <div id="smetaFields" class="dynamic-fields">
             <input type="text" id="smetaNumber" class="input-text" placeholder="Номер договора" value="15/26">
             <input type="text" id="smetaDate" class="input-text" placeholder="Дата сметы" value="12.11.2026">
+            <input type="text" id="smetaAppendix" class="input-text" placeholder="Номер приложения (например, 1)" value="1">
             <input type="text" id="smetaCustomerName" class="input-text" placeholder="Наименование Заказчика" value="ООО Заказчик">
             <input type="text" id="smetaCustomerDirector" class="input-text" placeholder="ФИО представителя Заказчика" value="Петров П.П.">
         </div>
@@ -168,6 +169,7 @@
             if (currentTemplate === 'smeta') {
                 fd.append('dogovor_number', document.getElementById('smetaNumber').value);
                 fd.append('smeta_date', document.getElementById('smetaDate').value);
+                fd.append('smeta_appendix', document.getElementById('smetaAppendix').value);
                 fd.append('customer_name', document.getElementById('smetaCustomerName').value);
                 fd.append('customer_director', document.getElementById('smetaCustomerDirector').value);
             }
