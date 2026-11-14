@@ -67,7 +67,7 @@
             <option value="osno">ОСНО (С НДС 22%)</option>
         </select>
 
-        <input type="text" id="directorInput" class="input-text" placeholder="ФИО Директора" value="Иванов И.И.">
+        <input type="text" id="directorInput" class="input-text" placeholder="ФИО Директора (Иванов И.И.)" value="Иванов И.И.">
         <input type="text" id="directorPosInput" class="input-text" placeholder="Должность (род. падеж)" value="Генерального директора">
         <input type="text" id="directorPosNomInput" class="input-text" placeholder="Должность (им. падеж)" value="Генеральный директор">
         
@@ -98,7 +98,7 @@
 
         <div id="servicesContainer">
             <div class="service-row">
-                <input type="text" class="input-text input-name" placeholder="Услуга" value='Транспортировка груза'>
+                <input type="text" class="input-text input-name" placeholder="Услуга" value='Транспортировка груза по маршруту Москва-Тверь'>
                 <input type="text" class="input-text input-unit" placeholder="Ед." value="рейс">
                 <input type="text" class="input-text input-qty" placeholder="Кол-во" value="1">
                 <input type="text" class="input-text input-price" placeholder="Цена" value="10000">
@@ -167,7 +167,7 @@
         async function loadProfile() {
             if (!chatId) return;
             try {
-                const res = await fetch(`https://genkart-app.onrender.com/get-profile?chat_id=${chatId}`);
+                const res = await fetch(`https://genkart-app.onrender.com/get-profile?chat_id=${chatId}&v=3`);
                 const data = await res.json();
                 if (data.status === "ok") {
                     document.getElementById('companyInput').value = data.company;
@@ -233,7 +233,7 @@
             fd.append('rs', document.getElementById('rsInput').value); fd.append('ks', document.getElementById('ksInput').value);
             if (logoBase64) fd.append('logo', logoBase64);
             try {
-                const res = await fetch('https://genkart-app.onrender.com/save-profile', { method: 'POST', body: fd });
+                const res = await fetch('https://genkart-app.onrender.com/save-profile?v=3', { method: 'POST', body: fd });
                 if (res.ok) { btn.textContent = "Сохранено!"; setTimeout(() => btn.textContent = "Сохранить профиль", 2000); } else { btn.textContent = "Ошибка сервера"; }
             } catch (e) { btn.textContent = "Ошибка сети"; }
         });
@@ -285,7 +285,7 @@
             }
 
             try {
-                const res = await fetch('https://genkart-app.onrender.com/generate-doc', { method: 'POST', body: fd });
+                const res = await fetch('https://genkart-app.onrender.com/generate-doc?v=3', { method: 'POST', body: fd });
                 if (res.ok) { tg.showAlert("Документ отправлен в чат!"); statusText.textContent = "Готово!"; } else { statusText.textContent = "Ошибка сервера."; }
             } catch (e) { statusText.textContent = "Ошибка сети."; } finally { btn.disabled = false; btn.textContent = "Создать документ 📄"; }
         });
