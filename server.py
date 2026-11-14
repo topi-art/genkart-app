@@ -43,7 +43,7 @@ CSS_STYLES = """
 @font-face { font-family: "PTSans"; src: url("https://github.com/google/fonts/raw/main/ofl/ptsans/PT_Sans-Web-Regular.ttf"); }
 body { font-family: "PTSans", sans-serif; font-size: 11pt; line-height: 1.35; text-align: justify; color: #000; text-indent: 1.25cm; }
 h1.title { text-align: center; font-size: 14pt; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; text-indent: 0; }
-table { width: 100%; border-collapse: collapse; margin-top: 15px; text-indent: 0; }
+table { width: 100%; margin-top: 15px; text-indent: 0; }
 th, td { border: 1px solid #000; padding: 6px; text-align: left; }
 """
 
@@ -109,7 +109,7 @@ async def generate_doc(
             <table><tr><th style="text-align:center; width: 5%;">№</th><th style="width: 60%;">Наименование услуги</th><th style="text-align:center; width: 15%;">Срок</th><th style="text-align:right; width: 20%;">Стоимость</th></tr>{rows}</table>
             <p style="text-align:right; margin-top: 10px; text-indent: 0;"><strong>Итого: {format_money(total_price)} руб.</strong><br>({nds_text})</p>
             <p style="text-indent: 0;">1. КП действительно 14 дней.<br>2. Оплата 100% постоплата.<br>3. Не является офертой (ст. 435 ГК РФ).</p>
-            <div style="margin-top: 30px; text-indent: 0;"><strong>С уважением,</strong><br><br>Генеральный директор<br>{company}<br><br><br>_______________ / {director if 'director' in locals() else 'Иванов И.И.'} /</div>
+            <div style="margin-top: 30px; text-indent: 0;"><strong>С уважением,</strong><br><br>Генеральный директор<br>{company}<br><br><br>_______________ / Иванов И.И. /</div>
             </body></html>"""
             pisa.CreatePDF(html, dest=buffer)
 
@@ -205,4 +205,6 @@ async def generate_doc(
             return {"status": "error", "message": "Нет chat_id"}
 
     except Exception as e:
+        # ВОТ ЭТА СТРОЧКА ВЫВЕДЕТ ОШИБКУ В ЛОГИ
+        print(f"КРИТИЧЕСКАЯ ОШИБКА: {e}")
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
