@@ -2,5 +2,4 @@ fastapi
 uvicorn
 requests
 python-multipart
-fpdf2
-
+xhtml2pdf
