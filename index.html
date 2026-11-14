@@ -9,30 +9,22 @@
         :root { --bg: #121212; --card: #1e1e1e; --text: #ffffff; --muted: #888888; --accent: #ff2a75; --accent-txt: #ffffff; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
         body { background: var(--bg); color: var(--text); padding: 16px; padding-bottom: 100px; }
-        
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .logo { font-size: 20px; font-weight: 800; } .logo span { color: var(--accent); }
-        
         .step-card { background: var(--card); border-radius: 16px; padding: 20px; margin-bottom: 16px; border: 1px solid #2a2a2a; }
         .step-header { display: flex; align-items: center; margin-bottom: 16px; font-size: 16px; font-weight: 600; }
         .step-number { background: #333; color: var(--muted); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; margin-right: 10px; }
-        
         .input-text { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #333; background: #121212; color: white; margin-bottom: 10px; font-size: 14px; }
         .input-text::placeholder { color: #555; }
-        
         .templates { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
         .tpl-btn { flex: 1; min-width: 30%; padding: 10px; background: #121212; color: var(--muted); border: 1px solid #333; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 12px; text-align: center; }
         .tpl-btn.active { background: #2a2a2a; color: var(--accent); border-color: var(--accent); }
-
         .btn-generate { background: var(--accent); color: var(--accent-txt); border: none; width: 100%; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; margin-bottom: 10px; }
         .btn-secondary { background: #333; color: #fff; border: none; width: 100%; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 15px; }
-        
         .dynamic-fields { display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid #333; }
         .dynamic-fields.active { display: block; }
-        
         .status-text { font-size: 13px; color: var(--accent); text-align: center; margin-top: 10px; }
         .disclaimer { font-size: 11px; color: #777; text-align: center; margin-top: 20px; line-height: 1.4; padding: 0 10px; }
-
         .service-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
         .service-row input { margin-bottom: 0; padding: 10px; font-size: 12px;}
         .input-name { flex: 3; }
@@ -40,34 +32,25 @@
         .input-qty { flex: 1; min-width: 45px; }
         .input-price { flex: 2; }
         .btn-remove { background: #ff2a75; color: white; border: none; border-radius: 8px; padding: 10px; cursor: pointer; font-weight: bold; }
-
-        #logoPreview { max-width: 100px; max-height: 50px; display: none; margin-bottom: 10px; border-radius: 5px; background: #fff; padding: 2px; }
     </style>
 </head>
 <body>
     <div class="header"><div class="logo">Gen<span>Doc</span></div></div>
 
-    <!-- ПРОФИЛЬ -->
     <div id="profileSection" class="step-card">
         <div class="step-header"><div class="step-number">1</div>Профиль компании</div>
-        
         <input type="text" id="companyInput" class="input-text" placeholder="Название компании (в кавычках)" value='ООО "Тест"'>
-        
         <div style="display: flex; gap: 10px;">
             <input type="text" id="innInput" class="input-text" placeholder="ИНН" value="1234567890">
             <button class="btn-secondary" style="width: auto; white-space: nowrap; margin-bottom: 10px;" onclick="fetchCompanyData()">Найти по ИНН</button>
         </div>
-
         <input type="text" id="addressInput" class="input-text" placeholder="Юридический адрес" value="123456, г. Москва, ул. Ленина, д. 1">
         <input type="text" id="contactInput" class="input-text" placeholder="Контакты" value="+7 999 999-99-99">
-        
         <button class="btn-generate" id="btnSaveProfile" style="background: #444;">Сохранить профиль</button>
     </div>
 
-    <!-- ДОКУМЕНТЫ -->
     <div id="generateSection" class="step-card">
         <div class="step-header"><div class="step-number">2</div>Данные документа</div>
-        
         <div class="templates">
             <button class="tpl-btn active" onclick="setTemplate('kp', this)">КП</button>
             <button class="tpl-btn" onclick="setTemplate('smeta', this)">Смета</button>
@@ -101,7 +84,6 @@
         </div>
 
         <button class="btn-generate" id="btnGenerateDoc" style="margin-top: 15px;">Создать документ 📄</button>
-        
         <div class="disclaimer">⚠️ <b>Внимание!</b> Бот использует шаблоны и может допускать ошибки. Обязательно проверяйте итоговый файл.</div>
         <div class="status-text" id="statusText"></div>
     </div>
