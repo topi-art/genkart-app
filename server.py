@@ -10,17 +10,9 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from xhtml2pdf import pisa
 
 app = FastAPI()
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# --- НОВЫЙ ТОКЕН ОТ @GenDocAppBot ---
-BOT_TOKEN = "9065574882:AAEiC0Ls-YC1ADejERPNLcZSdEJS7qCZe_I" 
+BOT_TOKEN = "9065574882:AAEiC0Ls-YC1ADejERPNLcZSdEJS7qCZe_I"
 
 DATABASE_URL = "sqlite:///./profiles_final.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
@@ -38,12 +30,11 @@ class Profile(Base):
 
 Base.metadata.create_all(bind=engine)
 
-# ПРОСТЫЕ СТИЛИ (без border-collapse и сложностей)
 CSS_STYLES = """
 @page { size: a4; margin: 20mm; }
 @font-face { font-family: "PTSans"; src: url("https://github.com/google/fonts/raw/main/ofl/ptsans/PT_Sans-Web-Regular.ttf"); }
-body { font-family: "PTSans", sans-serif; font-size: 11pt; line-height: 1.3; }
-h1 { text-align: center; font-size: 14pt; margin-bottom: 20px; }
+body { font-family: "PTSans", sans-serif; font-size: 11pt; }
+h1 { text-align: center; font-size: 14pt; }
 table { width: 100%; margin-top: 15px; }
 th, td { border: 1px solid #000; padding: 5px; text-align: left; }
 """
@@ -64,9 +55,7 @@ async def get_profile(chat_id: str):
     return {"status": "not_found"}
 
 @app.post("/save-profile")
-async def save_profile(
-    chat_id: str = Form(...), company: str = Form(...), inn: str = Form(...), address: str = Form(...), contacts: str = Form(...)
-):
+async def save_profile(chat_id: str = Form(...), company: str = Form(...), inn: str = Form(...), address: str = Form(...), contacts: str = Form(...)):
     db = SessionLocal()
     try:
         profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
@@ -95,36 +84,31 @@ async def generate_doc(
         
         nds_text = "НДС не облагается (УСН)"
 
-        # --- КП ---
         if template == "kp":
-            rows = "".join([f"<tr><td style='text-align:center;'>{i+1}</td><td>{s['name']}</td><td style='text-align:center;'>{term} дн.</td><td style='text-align:right;'>{format_money(float(s['price'])*int(s['qty']))} руб.</td></tr>" for i, s in enumerate(services)])
+            rows = "".join([f"<tr><td>{i+1}</td><td>{s['name']}</td><td>{term} дн.</td><td>{format_money(float(s['price'])*int(s['qty']))} руб.</td></tr>" for i, s in enumerate(services)])
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
-            <div style="margin-bottom: 20px;">
-                <strong>{company}</strong><br>ИНН: {inn}<br>Адрес: {address}<br>Тел: {contacts}
-            </div>
+            <div><strong>{company}</strong><br>ИНН: {inn}<br>Адрес: {address}<br>Тел: {contacts}</div>
             <p style="text-align: right;">Исх. № {dogovor_number} от {current_date}</p>
             <h1>Коммерческое предложение</h1>
             <p>Уважаемый клиент! {company} предлагает вам следующие услуги:</p>
-            <table><tr><th style="text-align:center; width: 5%;">№</th><th style="width: 60%;">Наименование</th><th style="text-align:center; width: 15%;">Срок</th><th style="text-align:right; width: 20%;">Стоимость</th></tr>{rows}</table>
+            <table><tr><th>№</th><th>Наименование</th><th>Срок</th><th>Стоимость</th></tr>{rows}</table>
             <p style="text-align:right;"><strong>Итого: {format_money(total_price)} руб.</strong> ({nds_text})</p>
             <p>1. КП действительно 14 дней.<br>2. Оплата 100% постоплата.<br>3. Не является офертой (ст. 435 ГК РФ).</p>
             <div style="margin-top: 30px;">С уважением,<br><br>Генеральный директор<br>{company}<br><br><br>_______________ / Иванов И.И. /</div>
             </body></html>"""
             pisa.CreatePDF(html, dest=buffer)
 
-        # --- СМЕТА ---
         elif template == "smeta":
-            rows = "".join([f"<tr><td style='text-align:center;'>{i+1}</td><td>{s['name']}</td><td style='text-align:center;'>усл.</td><td style='text-align:center;'>{s['qty']}</td><td style='text-align:right;'>{format_money(float(s['price']))}</td><td style='text-align:right;'>{format_money(float(s['price'])*int(s['qty']))}</td></tr>" for i, s in enumerate(services)])
+            rows = "".join([f"<tr><td>{i+1}</td><td>{s['name']}</td><td>усл.</td><td>{s['qty']}</td><td>{format_money(float(s['price']))}</td><td>{format_money(float(s['price'])*int(s['qty']))}</td></tr>" for i, s in enumerate(services)])
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
             <p style="text-align: right;">Приложение № 1 к Договору № {dogovor_number} от {smeta_date}</p>
             <h1>Смета № 1</h1>
-            <table><tr><th style="text-align:center; width: 5%;">№</th><th style="width: 45%;">Наименование</th><th style="text-align:center; width: 10%;">Ед.</th><th style="text-align:center; width: 10%;">Кол-во</th><th style="text-align:right; width: 15%;">Цена</th><th style="text-align:right; width: 15%;">Сумма</th></tr>{rows}<tr><td colspan="5" style="text-align:right;font-weight:bold;">Всего:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr></table>
+            <table><tr><th>№</th><th>Наименование</th><th>Ед.</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr>{rows}<tr><td colspan="5" style="text-align:right;font-weight:bold;">Всего:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr></table>
             <p><strong>Всего наименований {len(services)}, на сумму {format_money(total_price)} руб.</strong> {nds_text}.</p>
             <table style="width: 100%; margin-top: 30px;"><tr><td style="border: none;"><strong>Исполнитель:</strong><br>{company}<br><br><br>_______________<br>М.П.</td><td style="border: none;"><strong>Заказчик:</strong><br>{customer_name}<br><br><br>_______________<br>М.П.</td></tr></table>
             </body></html>"""
             pisa.CreatePDF(html, dest=buffer)
 
-        # --- ДОГОВОР ---
         elif template == "dogovor":
             first_service = services[0]['name'] if services else "Услуги"
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
@@ -139,7 +123,6 @@ async def generate_doc(
             </body></html>"""
             pisa.CreatePDF(html, dest=buffer)
 
-        # --- АКТ ---
         elif template == "act":
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
             <h1>АКТ СДАЧИ-ПРИЕМКИ ОКАЗАННЫХ УСЛУГ № 1</h1>
@@ -151,16 +134,13 @@ async def generate_doc(
             </body></html>"""
             pisa.CreatePDF(html, dest=buffer)
 
-        # --- СЧЕТ ---
         elif template == "invoice":
-            rows = "".join([f"<tr><td style='text-align:center;'>{i+1}</td><td>{s['name']}</td><td style='text-align:center;'>шт</td><td style='text-align:center;'>{s['qty']}</td><td style='text-align:right;'>{format_money(float(s['price']))}</td><td style='text-align:right;'>{format_money(float(s['price'])*int(s['qty']))}</td></tr>" for i, s in enumerate(services)])
+            rows = "".join([f"<tr><td>{i+1}</td><td>{s['name']}</td><td>шт</td><td>{s['qty']}</td><td>{format_money(float(s['price']))}</td><td>{format_money(float(s['price'])*int(s['qty']))}</td></tr>" for i, s in enumerate(services)])
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
-            <div style="margin-bottom: 20px;">
-                <strong>{company}</strong><br>ИНН: {inn}<br>Адрес: {address}
-            </div>
+            <div><strong>{company}</strong><br>ИНН: {inn}<br>Адрес: {address}</div>
             <h1>Счет на оплату № {dogovor_number} от {smeta_date}</h1>
             <p><strong>Поставщик:</strong> {company}, ИНН {inn}<br><strong>Покупатель:</strong> {customer_name}, ИНН {customer_inn}</p>
-            <table><tr><th style="text-align:center; width: 5%;">№</th><th style="width: 45%;">Наименование</th><th style="text-align:center; width: 10%;">Ед.</th><th style="text-align:center; width: 10%;">Кол-во</th><th style="text-align:right; width: 15%;">Цена</th><th style="text-align:right; width: 15%;">Сумма</th></tr>{rows}
+            <table><tr><th>№</th><th>Наименование</th><th>Ед.</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr>{rows}
             <tr><td colspan="5" style="text-align:right;font-weight:bold;">Итого:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr>
             <tr><td colspan="5" style="text-align:right;font-weight:bold;">{nds_text}</td><td style="text-align:right;font-weight:bold;">0,00</td></tr>
             <tr><td colspan="5" style="text-align:right;font-weight:bold;">Всего к оплате:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr></table>
