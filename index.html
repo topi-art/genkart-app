@@ -61,8 +61,12 @@
         <input type="text" id="addressInput" class="input-text" placeholder="Юридический адрес" value="123456, г. Москва, ул. Ленина, д. 1">
         <input type="text" id="contactInput" class="input-text" placeholder="Контакты" value="+7 999 999-99-99">
         
+        <select id="taxModeInput" class="input-text" style="color: white; background: #121212; border: 1px solid #333;">
+            <option value="usn">УСН (Без НДС)</option>
+            <option value="osno">ОСНО (С НДС 20%)</option>
+        </select>
+
         <input type="text" id="directorInput" class="input-text" placeholder="ФИО Директора (им. падеж)" value="Иванов И.И.">
-        <input type="text" id="directorRodInput" class="input-text" placeholder="ФИО Директора (род. падеж)" value="Иванова И.И.">
         <input type="text" id="directorPosInput" class="input-text" placeholder="Должность (род. падеж)" value="Генерального директора">
         <input type="text" id="directorPosNomInput" class="input-text" placeholder="Должность (им. падеж)" value="Генеральный директор">
         
@@ -102,16 +106,16 @@
         <button class="btn-secondary" onclick="addService()" style="margin-top: 5px;">+ Добавить услугу</button>
         <input type="text" id="termInput" class="input-text" placeholder="Сроки (дней)" value="30" style="margin-top: 10px;">
 
-        <!-- ПОЛЯ ЗАКАЗЧИКА -->
         <div id="dogovorFields" class="dynamic-fields">
             <input type="text" id="dogovorNumber" class="input-text" placeholder="Номер договора" value="15/26">
             <input type="text" id="dogovorDate" class="input-text" placeholder="Дата договора" value="12.11.2026">
             <input type="text" id="customerName" class="input-text" placeholder="Наименование Заказчика" value="ООО Заказчик">
             <input type="text" id="customerInn" class="input-text" placeholder="ИНН Заказчика" value="0987654321">
+            <input type="text" id="customerKpp" class="input-text" placeholder="КПП Заказчика" value="098701001">
             <input type="text" id="customerAddress" class="input-text" placeholder="Адрес Заказчика" value="654321, г. Казань, ул. Пушкина, д. 2">
             <input type="text" id="customerDirector" class="input-text" placeholder="ФИО представителя (им. падеж)" value="Петров П.П.">
-            <input type="text" id="customerDirectorRod" class="input-text" placeholder="ФИО представителя (род. падеж)" value="Петрова П.П.">
-            <input type="text" id="customerPos" class="input-text" placeholder="Должность представителя" value="Директора">
+            <input type="text" id="customerPos" class="input-text" placeholder="Должность представителя (род. падеж)" value="Генерального директора">
+            <input type="text" id="customerPosNom" class="input-text" placeholder="Должность представителя (им. падеж)" value="Генеральный директор">
         </div>
 
         <div id="smetaFields" class="dynamic-fields">
@@ -124,10 +128,7 @@
 
         <button class="btn-generate" id="btnGenerateDoc" style="margin-top: 15px;">Создать документ 📄</button>
         
-        <div class="disclaimer">
-            ⚠️ <b>Внимание!</b> Бот использует шаблоны и может допускать ошибки. Сгенерированный документ не является юридической консультацией. Обязательно проверяйте итоговый файл перед использованием.
-        </div>
-
+        <div class="disclaimer">⚠️ <b>Внимание!</b> Бот использует шаблоны и может допускать ошибки. Обязательно проверяйте итоговый файл.</div>
         <div class="status-text" id="statusText"></div>
     </div>
 
@@ -171,8 +172,8 @@
                     document.getElementById('kppInput').value = data.kpp || "";
                     document.getElementById('addressInput').value = data.address;
                     document.getElementById('contactInput').value = data.contacts;
+                    document.getElementById('taxModeInput').value = data.tax_mode || "usn";
                     document.getElementById('directorInput').value = data.director || "Иванов И.И.";
-                    document.getElementById('directorRodInput').value = data.director_rod || "Иванова И.И.";
                     document.getElementById('directorPosInput').value = data.director_pos || "Генерального директора";
                     document.getElementById('directorPosNomInput').value = data.director_pos_nom || "Генеральный директор";
                     document.getElementById('bankNameInput').value = data.bank_name || "";
@@ -202,7 +203,6 @@
                     document.getElementById('addressInput').value = comp.address ? comp.address.value : "";
                     if (comp.management) {
                         document.getElementById('directorInput').value = comp.management.name;
-                        document.getElementById('directorRodInput').value = comp.management.name; 
                     }
                 } else { alert("Компания не найдена"); }
             } catch (e) { alert("Ошибка при поиске ИНН."); } finally { btn.textContent = "Найти по ИНН"; }
@@ -223,7 +223,8 @@
             fd.append('chat_id', chatId); fd.append('company', document.getElementById('companyInput').value);
             fd.append('inn', document.getElementById('innInput').value); fd.append('kpp', document.getElementById('kppInput').value);
             fd.append('address', document.getElementById('addressInput').value); fd.append('contacts', document.getElementById('contactInput').value);
-            fd.append('director', document.getElementById('directorInput').value); fd.append('director_rod', document.getElementById('directorRodInput').value);
+            fd.append('tax_mode', document.getElementById('taxModeInput').value);
+            fd.append('director', document.getElementById('directorInput').value);
             fd.append('director_pos', document.getElementById('directorPosInput').value); fd.append('director_pos_nom', document.getElementById('directorPosNomInput').value);
             fd.append('bank_name', document.getElementById('bankNameInput').value); fd.append('bik', document.getElementById('bikInput').value);
             fd.append('rs', document.getElementById('rsInput').value); fd.append('ks', document.getElementById('ksInput').value);
@@ -251,7 +252,8 @@
             fd.append('company', document.getElementById('companyInput').value); fd.append('inn', document.getElementById('innInput').value);
             fd.append('kpp', document.getElementById('kppInput').value);
             fd.append('address', document.getElementById('addressInput').value); fd.append('contacts', document.getElementById('contactInput').value);
-            fd.append('director', document.getElementById('directorInput').value); fd.append('director_rod', document.getElementById('directorRodInput').value);
+            fd.append('tax_mode', document.getElementById('taxModeInput').value);
+            fd.append('director', document.getElementById('directorInput').value);
             fd.append('director_pos', document.getElementById('directorPosInput').value); fd.append('director_pos_nom', document.getElementById('directorPosNomInput').value);
             fd.append('bank_name', document.getElementById('bankNameInput').value); fd.append('bik', document.getElementById('bikInput').value);
             fd.append('rs', document.getElementById('rsInput').value); fd.append('ks', document.getElementById('ksInput').value);
@@ -261,13 +263,20 @@
             if (currentTemplate === 'dogovor') {
                 fd.append('dogovor_number', document.getElementById('dogovorNumber').value); fd.append('dogovor_date', document.getElementById('dogovorDate').value);
                 fd.append('customer_name', document.getElementById('customerName').value); fd.append('customer_inn', document.getElementById('customerInn').value);
-                fd.append('customer_address', document.getElementById('customerAddress').value); fd.append('customer_director', document.getElementById('customerDirector').value);
-                fd.append('customer_director_rod', document.getElementById('customerDirectorRod').value); fd.append('customer_pos', document.getElementById('customerPos').value);
+                fd.append('customer_kpp', document.getElementById('customerKpp').value); fd.append('customer_address', document.getElementById('customerAddress').value); 
+                fd.append('customer_director', document.getElementById('customerDirector').value);
+                fd.append('customer_pos', document.getElementById('customerPos').value);
             }
             if (currentTemplate === 'smeta' || currentTemplate === 'act' || currentTemplate === 'invoice') {
                 fd.append('dogovor_number', document.getElementById('smetaNumber').value); fd.append('smeta_date', document.getElementById('smetaDate').value);
                 fd.append('smeta_appendix', document.getElementById('smetaAppendix').value); fd.append('customer_name', document.getElementById('smetaCustomerName').value);
                 fd.append('customer_director', document.getElementById('smetaCustomerDirector').value);
+                // Для Акта/Сметы берем данные из Договора, если они заполнены
+                fd.append('customer_inn', document.getElementById('customerInn').value);
+                fd.append('customer_kpp', document.getElementById('customerKpp').value);
+                fd.append('customer_address', document.getElementById('customerAddress').value);
+                fd.append('customer_pos', document.getElementById('customerPos').value);
+                fd.append('customer_pos_nom', document.getElementById('customerPosNom').value);
             }
 
             try {
