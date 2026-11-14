@@ -9,6 +9,7 @@ from sqlalchemy import create_engine, Column, String, Integer, Text
 from sqlalchemy.orm import declarative_base, sessionmaker
 from xhtml2pdf import pisa
 from num2words import num2words
+import re
 
 app = FastAPI()
 
@@ -22,6 +23,22 @@ app.add_middleware(
 
 BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
 
+# --- ФУНКЦИЯ СКЛОНЕНИЯ ФИО ---
+def decline_fio(fio):
+    if not fio: return ""
+    words = fio.split()
+    res = []
+    for word in words:
+        if word.endswith("а"):
+            res.append(word[:-1] + "ы")
+        elif word.endswith("я"):
+            res.append(word[:-1] + "и")
+        elif word.endswith("на") or word.endswith("ва"): 
+            res.append(word + "ой")
+        else:
+            res.append(word + "а")
+    return " ".join(res)
+
 # --- БАЗА ДАННЫХ ---
 DATABASE_URL = "sqlite:///./profiles_final.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
@@ -34,13 +51,13 @@ class Profile(Base):
     chat_id = Column(String, unique=True, index=True)
     company = Column(String, default="ООО Ваша компания")
     inn = Column(String, default="0000000000")
-    kpp = Column(String, default="") # Добавили КПП
+    kpp = Column(String, default="")
     address = Column(String, default="г. Москва")
     contacts = Column(String, default="+7 (999) 999-99-99")
+    tax_mode = Column(String, default="usn") # Налоговый режим
     director = Column(String, default="Иванов И.И.")
-    director_rod = Column(String, default="Иванова И.И.")
     director_pos = Column(String, default="Генерального директора")
-    director_pos_nom = Column(String, default="Генеральный директор") # Для подписи
+    director_pos_nom = Column(String, default="Генеральный директор")
     bank_name = Column(String, default="")
     bik = Column(String, default="")
     rs = Column(String, default="")
@@ -98,13 +115,13 @@ async def get_profile(chat_id: str):
     profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
     db.close()
     if profile:
-        return {"status": "ok", "company": profile.company, "inn": profile.inn, "kpp": profile.kpp, "address": profile.address, "contacts": profile.contacts, "director": profile.director, "director_rod": profile.director_rod, "director_pos": profile.director_pos, "director_pos_nom": profile.director_pos_nom, "bank_name": profile.bank_name, "bik": profile.bik, "rs": profile.rs, "ks": profile.ks, "logo": profile.logo}
+        return {"status": "ok", "company": profile.company, "inn": profile.inn, "kpp": profile.kpp, "address": profile.address, "contacts": profile.contacts, "tax_mode": profile.tax_mode, "director": profile.director, "director_pos": profile.director_pos, "director_pos_nom": profile.director_pos_nom, "bank_name": profile.bank_name, "bik": profile.bik, "rs": profile.rs, "ks": profile.ks, "logo": profile.logo}
     return {"status": "not_found"}
 
 @app.post("/save-profile")
 async def save_profile(
     chat_id: str = Form(...), company: str = Form(...), inn: str = Form(...), kpp: str = Form(""), address: str = Form(...), 
-    contacts: str = Form(...), director: str = Form(...), director_rod: str = Form(...), director_pos: str = Form(...), director_pos_nom: str = Form(...),
+    contacts: str = Form(...), tax_mode: str = Form("usn"), director: str = Form(...), director_pos: str = Form(...), director_pos_nom: str = Form(...),
     bank_name: str = Form(None), bik: str = Form(None), rs: str = Form(None), ks: str = Form(None), logo: str = Form(None)
 ):
     db = SessionLocal()
@@ -112,14 +129,15 @@ async def save_profile(
         profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
         if profile:
             profile.company, profile.inn, profile.kpp, profile.address, profile.contacts = company, inn, kpp, address, contacts
-            profile.director, profile.director_rod, profile.director_pos, profile.director_pos_nom = director, director_rod, director_pos, director_pos_nom
+            profile.tax_mode = tax_mode
+            profile.director, profile.director_pos, profile.director_pos_nom = director, director_pos, director_pos_nom
             if bank_name: profile.bank_name = bank_name
             if bik: profile.bik = bik
             if rs: profile.rs = rs
             if ks: profile.ks = ks
             if logo: profile.logo = logo
         else:
-            db.add(Profile(chat_id=chat_id, company=company, inn=inn, kpp=kpp, address=address, contacts=contacts, director=director, director_rod=director_rod, director_pos=director_pos, director_pos_nom=director_pos_nom, bank_name=bank_name, bik=bik, rs=rs, ks=ks, logo=logo))
+            db.add(Profile(chat_id=chat_id, company=company, inn=inn, kpp=kpp, address=address, contacts=contacts, tax_mode=tax_mode, director=director, director_pos=director_pos, director_pos_nom=director_pos_nom, bank_name=bank_name, bik=bik, rs=rs, ks=ks, logo=logo))
         db.commit()
         return {"status": "ok"}
     except Exception as e: return {"status": "error", "message": str(e)}
@@ -128,11 +146,11 @@ async def save_profile(
 @app.post("/generate-doc")
 async def generate_doc(
     template: str = Form("kp"), company: str = Form("ООО Ваша компания"), inn: str = Form("0000000000"), kpp: str = Form(""), 
-    address: str = Form("г. Москва"), contacts: str = Form("+7 (999) 999-99-99"), 
-    director: str = Form("Иванов И.И."), director_rod: str = Form("Иванова И.И."), director_pos: str = Form("Генерального директора"), director_pos_nom: str = Form("Генеральный директор"),
+    address: str = Form("г. Москва"), contacts: str = Form("+7 (999) 999-99-99"), tax_mode: str = Form("usn"),
+    director: str = Form("Иванов И.И."), director_pos: str = Form("Генерального директора"), director_pos_nom: str = Form("Генеральный директор"),
     services_json: str = Form("[]"), term: str = Form("30"), dogovor_number: str = Form("Б/Н"), dogovor_date: str = Form(""), 
-    customer_name: str = Form("ООО Заказчик"), customer_inn: str = Form("1111111111"), customer_address: str = Form("г. Москва"), 
-    customer_director: str = Form("Петров П.П."), customer_director_rod: str = Form("Петрова П.П."), customer_pos: str = Form("Генерального директора"),
+    customer_name: str = Form("ООО Заказчик"), customer_inn: str = Form("1111111111"), customer_kpp: str = Form(""), customer_address: str = Form("г. Москва"), 
+    customer_director: str = Form("Петров П.П."), customer_pos: str = Form("Генерального директора"), customer_pos_nom: str = Form("Генеральный директор"),
     smeta_date: str = Form(""), smeta_appendix: str = Form("1"), chat_id: str = Form(None), logo: str = Form(None),
     bank_name: str = Form(None), bik: str = Form(None), rs: str = Form(None), ks: str = Form(None)
 ):
@@ -143,8 +161,17 @@ async def generate_doc(
         date_to_use = dogovor_date if dogovor_date else current_date
         smeta_date_to_use = smeta_date if smeta_date else current_date
         buffer = io.BytesIO()
-        nds_text = "НДС не облагается на основании п. 2 ст. 346.11 НК РФ (УСН)"
+        
+        if tax_mode == "osno":
+            nds_text = "В том числе НДС 20%"
+        else:
+            nds_text = "НДС не облагается на основании п. 2 ст. 346.11 НК РФ (УСН)"
+            
         header_html = get_header_html(company, inn, kpp, address, contacts, logo)
+        
+        # Склоняем ФИО для текста договора
+        dir_rod = decline_fio(director)
+        cust_rod = decline_fio(customer_director)
 
         # --- КП ---
         if template == "kp":
@@ -159,11 +186,9 @@ async def generate_doc(
             <p>Уважаемый клиент! {company} предлагает вам следующие услуги:</p>
             <table><tr><th style="text-align:center; width: 5%;">№</th><th style="width: 60%;">Наименование услуги</th><th style="text-align:center; width: 15%;">Срок</th><th style="text-align:right; width: 20%;">Стоимость</th></tr>{rows}</table>
             <p style="text-align:right; margin-top: 10px; text-indent: 0;"><strong>Итого: {format_money(total_price)} руб.</strong><br>({nds_text})</p>
-            
             <p class="list-item">1. КП действительно 14 дней.</p>
             <p class="list-item">2. Оплата 100% постоплата.</p>
             <p class="list-item">3. Не является офертой (ст. 435 ГК РФ).</p>
-            
             <div class="signature-block"><strong>С уважением,</strong><br><br>{director_pos_nom}<br>{company}<br><br><br>_______________ / {director} /<br>М.П.</div>
             </body></html>"""
             pisa.CreatePDF(html, dest=buffer)
@@ -176,7 +201,7 @@ async def generate_doc(
             <h1 class="title">Смета № {smeta_appendix}</h1>
             <table><tr><th style="text-align:center; width: 5%;">№</th><th style="width: 45%;">Наименование</th><th style="text-align:center; width: 10%;">Ед.</th><th style="text-align:center; width: 10%;">Кол-во</th><th style="text-align:right; width: 15%;">Цена</th><th style="text-align:right; width: 15%;">Сумма</th></tr>{rows}<tr><td colspan="5" style="text-align:right;font-weight:bold;">Всего:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr></table>
             <p><strong>Всего наименований {len(services)}, на сумму {format_money(total_price)} руб.</strong> {nds_text}.</p>
-            <table style="width: 100%; border: none; margin-top: 30px; text-indent: 0;"><tr><td style="border: none; width: 50%;"><strong>Исполнитель:</strong><br>{company}<br><br><br>{director_pos_nom}<br>_______________ / {director} /<br>М.П.</td><td style="border: none; width: 50%;"><strong>Заказчик:</strong><br>{customer_name}<br><br><br>{customer_pos}<br>_______________ / {customer_director} /<br>М.П.</td></tr></table>
+            <table style="width: 100%; border: none; margin-top: 30px; text-indent: 0;"><tr><td style="border: none; width: 50%;"><strong>Исполнитель:</strong><br>{company}<br><br><br>{director_pos_nom}<br>_______________ / {director} /<br>М.П.</td><td style="border: none; width: 50%;"><strong>Заказчик:</strong><br>{customer_name}<br><br><br>{customer_pos_nom}<br>_______________ / {customer_director} /<br>М.П.</td></tr></table>
             </body></html>"""
             pisa.CreatePDF(html, dest=buffer)
 
@@ -184,10 +209,11 @@ async def generate_doc(
         elif template == "dogovor":
             first_service = services[0]['name'] if services else "Услуги"
             kpp_str = f", КПП: {kpp}" if kpp else ""
+            cust_kpp_str = f", КПП: {customer_kpp}" if customer_kpp else ""
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
             <h1 class="title">ДОГОВОР ОКАЗАНИЯ УСЛУГ № {dogovor_number}</h1>
             <table class="meta"><tr><td style="text-align: left;">г. Москва</td><td style="text-align: right;">{date_to_use} г.</td></tr></table>
-            <p>{company}, в лице {director_pos} {director_rod}, с одной стороны, и {customer_name} (ИНН: {customer_inn}, адрес: {customer_address}), в лице {customer_pos} {customer_director_rod}, с другой стороны, заключили Договор:</p>
+            <p>{company}, в лице {director_pos} {dir_rod}, с одной стороны, и {customer_name} (ИНН: {customer_inn}{cust_kpp_str}, адрес: {customer_address}), в лице {customer_pos} {cust_rod}, с другой стороны, заключили Договор:</p>
             <div class="section-title">1. ПРЕДМЕТ ДОГОВОРА</div>
             <p>1.1. Исполнитель обязуется оказать следующие услуги: <strong>{first_service}</strong> (далее — «Услуги»).</p>
             <p>1.2. Перечень и стоимость Услуг определяются в Смете (Приложение № {smeta_appendix}).</p>
@@ -205,7 +231,7 @@ async def generate_doc(
                         <strong>Исполнитель:</strong><br>{company}<br>ИНН: {inn}{kpp_str}<br>Адрес: {address}<br><br>{director_pos_nom}<br><br>_______________ / {director} /<br>М.П.
                     </td>
                     <td style="border: none; width: 50%; vertical-align: top; padding-left: 10px;">
-                        <strong>Заказчик:</strong><br>{customer_name}<br>ИНН: {customer_inn}<br>Адрес: {customer_address}<br><br>{customer_pos}<br><br>_______________ / {customer_director} /<br>М.П.
+                        <strong>Заказчик:</strong><br>{customer_name}<br>ИНН: {customer_inn}{cust_kpp_str}<br>Адрес: {customer_address}<br><br>{customer_pos_nom}<br><br>_______________ / {customer_director} /<br>М.П.
                     </td>
                 </tr>
             </table>
@@ -216,17 +242,18 @@ async def generate_doc(
         elif template == "act":
             rows = "".join([f"<tr><td style='text-align:center;'>{i+1}</td><td>{s['name']}</td><td style='text-align:center;'>усл.</td><td style='text-align:center;'>{s['qty']}</td><td style='text-align:right;'>{format_money(float(s['price']))}</td><td style='text-align:right;'>{format_money(float(s['price'])*int(s['qty']))}</td></tr>" for i, s in enumerate(services)])
             kpp_str = f", КПП: {kpp}" if kpp else ""
+            cust_kpp_str = f", КПП: {customer_kpp}" if customer_kpp else ""
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
             <h1 class="title">АКТ СДАЧИ-ПРИЕМКИ ОКАЗАННЫХ УСЛУГ № {smeta_appendix}</h1>
             <table class="meta"><tr><td style="text-align: left;">г. Москва</td><td style="text-align: right;">{smeta_date_to_use} г.</td></tr></table>
-            <p>Мы, нижеподписавшиеся, представитель Исполнителя <strong>{company}</strong> в лице {director_pos} {director_rod}, с одной стороны, и представитель Заказчика <strong>{customer_name}</strong> в лице {customer_pos} {customer_director_rod}, с другой стороны, составили настоящий Акт о том, что Услуги по Договору № {dogovor_number} от {date_to_use} выполнены в полном объеме и в срок.</p>
+            <p>Мы, нижеподписавшиеся, представитель Исполнителя <strong>{company}</strong> в лице {director_pos} {dir_rod}, с одной стороны, и представитель Заказчика <strong>{customer_name}</strong> в лице {customer_pos} {cust_rod}, с другой стороны, составили настоящий Акт о том, что Услуги по Договору № {dogovor_number} от {date_to_use} выполнены в полном объеме и в срок.</p>
             <table><tr><th style="text-align:center; width: 5%;">№</th><th style="width: 45%;">Наименование услуги</th><th style="text-align:center; width: 10%;">Ед.</th><th style="text-align:center; width: 10%;">Кол-во</th><th style="text-align:right; width: 15%;">Цена</th><th style="text-align:right; width: 15%;">Сумма</th></tr>{rows}<tr><td colspan="5" style="text-align:right;font-weight:bold;">Всего к оплате:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr></table>
             <p><strong>Всего наименований {len(services)}, на сумму {format_money(total_price)} руб.</strong> {nds_text}.</p>
             <p>Претензий по объему, качеству и срокам оказания Услуг Заказчик не имеет.</p>
             <table style="width: 100%; border: none; margin-top: 40px; text-indent: 0;">
                 <tr>
                     <td style="border: none; width: 50%; vertical-align: top; padding-right: 10px;"><strong>Исполнитель:</strong><br>{company}<br>ИНН: {inn}{kpp_str}<br>Адрес: {address}<br><br>{director_pos_nom}<br><br>_______________ / {director} /<br>М.П.</td>
-                    <td style="border: none; width: 50%; vertical-align: top; padding-left: 10px;"><strong>Заказчик:</strong><br>{customer_name}<br>ИНН: {customer_inn}<br>Адрес: {customer_address}<br><br>{customer_pos}<br><br>_______________ / {customer_director} /<br>М.П.</td>
+                    <td style="border: none; width: 50%; vertical-align: top; padding-left: 10px;"><strong>Заказчик:</strong><br>{customer_name}<br>ИНН: {customer_inn}{cust_kpp_str}<br>Адрес: {customer_address}<br><br>{customer_pos_nom}<br><br>_______________ / {customer_director} /<br>М.П.</td>
                 </tr>
             </table>
             </body></html>"""
@@ -237,6 +264,7 @@ async def generate_doc(
             rows = "".join([f"<tr><td style='text-align:center;'>{i+1}</td><td>{s['name']}</td><td style='text-align:center;'>усл.</td><td style='text-align:center;'>{s['qty']}</td><td style='text-align:right;'>{format_money(float(s['price']))}</td><td style='text-align:right;'>{format_money(float(s['price'])*int(s['qty']))}</td></tr>" for i, s in enumerate(services)])
             sum_propis = num2words_rub(total_price)
             kpp_str = f", КПП: {kpp}" if kpp else ""
+            cust_kpp_str = f", КПП: {customer_kpp}" if customer_kpp else ""
             bank_table = f"""
             <table style="width: 100%; border-collapse: collapse; text-indent: 0; font-size: 10pt; margin-bottom: 20px;">
                 <tr><td style="border: 1px solid #000; padding: 5px; width: 15%;">Банк получателя:</td><td style="border: 1px solid #000; padding: 5px;" colspan="3">{bank_name or "____________________"}</td></tr>
@@ -252,7 +280,7 @@ async def generate_doc(
             
             <table class="meta" style="margin-bottom: 15px;">
                 <tr><td style="text-align: left;"><strong>Поставщик (Исполнитель):</strong><br>{company}, ИНН {inn}{kpp_str}, {address}</td></tr>
-                <tr><td style="text-align: left; padding-top: 5px;"><strong>Покупатель (Заказчик):</strong><br>{customer_name}, ИНН {customer_inn}, {customer_address}</td></tr>
+                <tr><td style="text-align: left; padding-top: 5px;"><strong>Покупатель (Заказчик):</strong><br>{customer_name}, ИНН {customer_inn}{cust_kpp_str}, {customer_address}</td></tr>
                 <tr><td style="text-align: left; padding-top: 5px;"><strong>Основание:</strong> Договор № {dogovor_number} от {date_to_use} г.</td></tr>
             </table>
 
@@ -278,7 +306,6 @@ async def generate_doc(
 
         buffer.seek(0)
 
-        # --- ОТПРАВКА В TELEGRAM ---
         if chat_id:
             url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
             files = {'document': ('document.pdf', buffer.getvalue(), 'application/pdf')}
