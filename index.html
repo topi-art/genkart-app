@@ -106,6 +106,7 @@
         async function loadProfile() {
             if (!chatId) return;
             try {
+                // ССЫЛКА НА НОВЫЙ СЕРВЕР
                 const res = await fetch(`https://genkart-app-final.onrender.com/get-profile?chat_id=${chatId}`);
                 const data = await res.json();
                 if (data.status === "ok") {
@@ -152,6 +153,7 @@
             fd.append('inn', document.getElementById('innInput').value);
             fd.append('address', document.getElementById('addressInput').value); fd.append('contacts', document.getElementById('contactInput').value);
             try {
+                // ССЫЛКА НА НОВЫЙ СЕРВЕР
                 const res = await fetch('https://genkart-app-final.onrender.com/save-profile', { method: 'POST', body: fd });
                 if (res.ok) { btn.textContent = "Сохранено!"; setTimeout(() => btn.textContent = "Сохранить профиль", 2000); } else { btn.textContent = "Ошибка сервера"; }
             } catch (e) { btn.textContent = "Ошибка сети"; }
@@ -185,6 +187,7 @@
             }
 
             try {
+                // ССЫЛКА НА НОВЫЙ СЕРВЕР
                 const res = await fetch('https://genkart-app-final.onrender.com/generate-doc', { method: 'POST', body: fd });
                 if (res.ok) { tg.showAlert("Документ отправлен в чат!"); statusText.textContent = "Готово!"; } else { statusText.textContent = "Ошибка сервера."; }
             } catch (e) { statusText.textContent = "Ошибка сети."; } finally { btn.disabled = false; btn.textContent = "Создать документ 📄"; }
