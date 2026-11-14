@@ -41,7 +41,6 @@ class Profile(Base):
 
 Base.metadata.create_all(bind=engine)
 
-# УБРАЛИ border-collapse (он ломал сервер)
 CSS_STYLES = """
 @page { size: a4; margin: 20mm 15mm 20mm 30mm; }
 @font-face { font-family: "PTSans"; src: url("https://github.com/google/fonts/raw/main/ofl/ptsans/PT_Sans-Web-Regular.ttf"); }
@@ -222,12 +221,7 @@ async def generate_doc(
             kpp_str = f", КПП: {kpp}" if kpp else ""
             cust_kpp_str = f", КПП: {customer_kpp}" if customer_kpp else ""
             
-            if tax_mode == "osno":
-                nds_rate = 0.22
-                nds_amount = total_price * nds_rate / (1 + nds_rate)
-                nds_row = f"<tr><td colspan='5' style='text-align:right;font-weight:bold;'>В том числе НДС 22%:</td><td style='text-align:right;font-weight:bold;'>{format_money(nds_amount)}</td></tr>"
-            else:
-                nds_row = "<tr><td colspan='5' style='text-align:right;font-weight:bold;'>Без налога (НДС):</td><td style='text-align:right;font-weight:bold;'>0,00</td></tr>"
+            nds_row = "" # Убрали проблемную строку
 
             bank_table = f"""
             <table style="width: 100%; text-indent: 0; font-size: 10pt; margin-bottom: 20px;">
@@ -250,7 +244,6 @@ async def generate_doc(
                 <tr><th style="text-align:center; width: 5%;">№</th><th style="width: 45%;">Наименование</th><th style="text-align:center; width: 10%;">Ед.</th><th style="text-align:center; width: 10%;">Кол-во</th><th style="text-align:right; width: 15%;">Цена</th><th style="text-align:right; width: 15%;">Сумма</th></tr>
                 {rows}
                 <tr><td colspan="5" style="text-align:right;font-weight:bold;">Итого:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr>
-                {nds_row}
                 <tr><td colspan="5" style="text-align:right;font-weight:bold;">Всего к оплате:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr>
             </table>
             <table style="width: 100%; border: none; margin-top: 40px; text-indent: 0;">
