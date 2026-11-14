@@ -2,7 +2,5 @@ fastapi
 uvicorn
 requests
 python-multipart
-pillow
-sqlalchemy
-xhtml2pdf
+fpdf2
 
