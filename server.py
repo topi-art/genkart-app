@@ -12,8 +12,8 @@ from xhtml2pdf import pisa
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-# --- ТОКЕН СТАРОГО БОТА ---
-BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
+# --- ТОКЕН НОВОГО БОТА (@GenDocAppBot) ---
+BOT_TOKEN = "9065574882:AAEiC0Ls-YC1ADejERPNLcZSdEJS7qCZe_I" 
 
 DATABASE_URL = "sqlite:///./profiles_final.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
@@ -51,7 +51,7 @@ h1.title { text-align: center; font-size: 14pt; font-weight: bold; margin-bottom
 .section-title { font-weight: bold; margin-top: 15px; margin-bottom: 10px; text-indent: 0; }
 table { width: 100%; margin-top: 15px; text-indent: 0; }
 th, td { border: 1px solid #000; padding: 6px; text-align: left; }
-.header-info { margin-bottom: 20px; font-size: 10pt; text-align: left; text-indent: 0; }
+.header-info { margin-bottom: 20px; font-size: 10pt; text-align: left; text-indent: 0; font-weight: bold; }
 .signature-block { margin-top: 30px; text-indent: 0; }
 .list-item { text-indent: 0; margin-bottom: 5px; }
 """
@@ -221,7 +221,7 @@ async def generate_doc(
             kpp_str = f", КПП: {kpp}" if kpp else ""
             cust_kpp_str = f", КПП: {customer_kpp}" if customer_kpp else ""
             
-            nds_row = "" # Убрали проблемную строку
+            nds_row = "" 
 
             bank_table = f"""
             <table style="width: 100%; text-indent: 0; font-size: 10pt; margin-bottom: 20px;">
