@@ -12,7 +12,6 @@ from xhtml2pdf import pisa
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-# --- НОВЫЙ ТОКЕН ОТ @GenDocAppBot ---
 BOT_TOKEN = "9065574882:AAEiC0Ls-YC1ADejERPNLcZSdEJS7qCZe_I"
 
 DATABASE_URL = "sqlite:///./profiles_final.db"
@@ -31,13 +30,14 @@ class Profile(Base):
 
 Base.metadata.create_all(bind=engine)
 
+# ПРОСТЫЕ СТИЛИ (без border-collapse)
 CSS_STYLES = """
-@page { size: a4; margin: 20mm 15mm 20mm 30mm; }
+@page { size: a4; margin: 20mm; }
 @font-face { font-family: "PTSans"; src: url("https://github.com/google/fonts/raw/main/ofl/ptsans/PT_Sans-Web-Regular.ttf"); }
-body { font-family: "PTSans", sans-serif; font-size: 11pt; line-height: 1.35; text-align: justify; color: #000; text-indent: 1.25cm; }
-h1.title { text-align: center; font-size: 14pt; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; text-indent: 0; }
-table { width: 100%; margin-top: 15px; text-indent: 0; }
-th, td { border: 1px solid #000; padding: 6px; text-align: left; }
+body { font-family: "PTSans", sans-serif; font-size: 11pt; }
+h1 { text-align: center; font-size: 14pt; }
+table { width: 100%; margin-top: 15px; }
+th, td { border: 1px solid #000; padding: 5px; text-align: left; }
 """
 
 def format_money(val):
@@ -83,91 +83,69 @@ async def generate_doc(
         current_date = datetime.now().strftime("%d.%m.%Y")
         buffer = io.BytesIO()
         
-        nds_text = "НДС не облагается на основании п. 2 ст. 346.11 НК РФ (УСН)"
+        nds_text = "НДС не облагается (УСН)"
 
         if template == "kp":
-            rows = "".join([f"<tr><td style='text-align:center;'>{i+1}</td><td>{s['name']}</td><td style='text-align:center;'>{term} дн.</td><td style='text-align:right;'>{format_money(float(s['price'])*int(s['qty']))} руб.</td></tr>" for i, s in enumerate(services)])
+            rows = "".join([f"<tr><td>{i+1}</td><td>{s['name']}</td><td>{term} дн.</td><td>{format_money(float(s['price'])*int(s['qty']))} руб.</td></tr>" for i, s in enumerate(services)])
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
-            <div style="margin-bottom: 20px;">
-                <strong>{company}</strong><br>ИНН/КПП: {inn}<br>Адрес: {address}<br>Тел: {contacts}
-            </div>
-            <table style="margin-bottom: 20px; border: none;"><tr><td style="border: none; text-align: right;">Исх. № {dogovor_number} от {current_date} г.</td></tr></table>
-            <h1 class="title">Коммерческое предложение<br>на оказание услуг</h1>
+            <div><strong>{company}</strong><br>ИНН: {inn}<br>Адрес: {address}<br>Тел: {contacts}</div>
+            <p style="text-align: right;">Исх. № {dogovor_number} от {current_date}</p>
+            <h1>Коммерческое предложение</h1>
             <p>Уважаемый клиент! {company} предлагает вам следующие услуги:</p>
-            <table><tr><th style="text-align:center; width: 5%;">№</th><th style="width: 60%;">Наименование услуги</th><th style="text-align:center; width: 15%;">Срок</th><th style="text-align:right; width: 20%;">Стоимость</th></tr>{rows}</table>
-            <p style="text-align:right; margin-top: 10px; text-indent: 0;"><strong>Итого: {format_money(total_price)} руб.</strong><br>({nds_text})</p>
-            <p style="text-indent: 0;">1. КП действительно 14 дней.<br>2. Оплата 100% постоплата.<br>3. Не является офертой (ст. 435 ГК РФ).</p>
-            <div style="margin-top: 30px; text-indent: 0;"><strong>С уважением,</strong><br><br>Генеральный директор<br>{company}<br><br><br>_______________ / Иванов И.И. /</div>
+            <table><tr><th>№</th><th>Наименование</th><th>Срок</th><th>Стоимость</th></tr>{rows}</table>
+            <p style="text-align:right;"><strong>Итого: {format_money(total_price)} руб.</strong> ({nds_text})</p>
+            <p>1. КП действительно 14 дней.<br>2. Оплата 100% постоплата.<br>3. Не является офертой (ст. 435 ГК РФ).</p>
+            <div style="margin-top: 30px;">С уважением,<br><br>Генеральный директор<br>{company}<br><br><br>_______________ / Иванов И.И. /</div>
             </body></html>"""
             pisa.CreatePDF(html, dest=buffer)
 
         elif template == "smeta":
-            rows = "".join([f"<tr><td style='text-align:center;'>{i+1}</td><td>{s['name']}</td><td style='text-align:center;'>усл.</td><td style='text-align:center;'>{s['qty']}</td><td style='text-align:right;'>{format_money(float(s['price']))}</td><td style='text-align:right;'>{format_money(float(s['price'])*int(s['qty']))}</td></tr>" for i, s in enumerate(services)])
+            rows = "".join([f"<tr><td>{i+1}</td><td>{s['name']}</td><td>усл.</td><td>{s['qty']}</td><td>{format_money(float(s['price']))}</td><td>{format_money(float(s['price'])*int(s['qty']))}</td></tr>" for i, s in enumerate(services)])
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
-            <table style="margin-bottom: 20px; border: none;"><tr><td style="border: none; text-align: right;">Приложение № 1 к Договору № {dogovor_number} от {smeta_date}</td></tr></table>
-            <h1 class="title">Смета № 1</h1>
-            <table><tr><th style="text-align:center; width: 5%;">№</th><th style="width: 45%;">Наименование</th><th style="text-align:center; width: 10%;">Ед.</th><th style="text-align:center; width: 10%;">Кол-во</th><th style="text-align:right; width: 15%;">Цена</th><th style="text-align:right; width: 15%;">Сумма</th></tr>{rows}<tr><td colspan="5" style="text-align:right;font-weight:bold;">Всего:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr></table>
+            <p style="text-align: right;">Приложение № 1 к Договору № {dogovor_number} от {smeta_date}</p>
+            <h1>Смета № 1</h1>
+            <table><tr><th>№</th><th>Наименование</th><th>Ед.</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr>{rows}<tr><td colspan="5" style="text-align:right;font-weight:bold;">Всего:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr></table>
             <p><strong>Всего наименований {len(services)}, на сумму {format_money(total_price)} руб.</strong> {nds_text}.</p>
-            <table style="width: 100%; border: none; margin-top: 30px; text-indent: 0;"><tr><td style="border: none; width: 50%;"><strong>Исполнитель:</strong><br>{company}<br><br><br>_______________<br>М.П.</td><td style="border: none; width: 50%;"><strong>Заказчик:</strong><br>{customer_name}<br><br><br>_______________<br>М.П.</td></tr></table>
+            <table style="width: 100%; margin-top: 30px;"><tr><td style="border: none;"><strong>Исполнитель:</strong><br>{company}<br><br><br>_______________<br>М.П.</td><td style="border: none;"><strong>Заказчик:</strong><br>{customer_name}<br><br><br>_______________<br>М.П.</td></tr></table>
             </body></html>"""
             pisa.CreatePDF(html, dest=buffer)
 
         elif template == "dogovor":
             first_service = services[0]['name'] if services else "Услуги"
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
-            <h1 class="title">ДОГОВОР ОКАЗАНИЯ УСЛУГ № {dogovor_number}</h1>
-            <table style="margin-bottom: 20px; border: none;"><tr><td style="border: none; text-align: left;">г. Москва</td><td style="border: none; text-align: right;">{current_date} г.</td></tr></table>
+            <h1>ДОГОВОР ОКАЗАНИЯ УСЛУГ № {dogovor_number}</h1>
+            <p style="text-align: right;">г. Москва, {current_date}</p>
             <p>{company}, в лице Генерального директора Иванова И.И., с одной стороны, и {customer_name} (ИНН: {customer_inn}), с другой стороны, заключили Договор:</p>
             <p><strong>1. ПРЕДМЕТ ДОГОВОРА</strong><br>1.1. Исполнитель обязуется оказать следующие услуги: <strong>{first_service}</strong>.</p>
             <p><strong>2. СТОИМОСТЬ И ПОРЯДОК РАСЧЕТОВ</strong><br>2.1. Общая стоимость Услуг составляет <strong>{format_money(total_price)} руб.</strong>, {nds_text}.</p>
             <p><strong>3. ОТВЕТСТВЕННОСТЬ СТОРОН</strong><br>3.1. Стороны несут ответственность согласно законодательству РФ.</p>
             <p><strong>4. ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ</strong><br>4.1. Договор действует до полного исполнения.</p>
-            <table style="width: 100%; border: none; margin-top: 20px; text-indent: 0;">
-                <tr>
-                    <td style="border: none; width: 50%; vertical-align: top; padding-right: 10px;"><strong>Исполнитель:</strong><br>{company}<br>ИНН: {inn}<br><br>_______________<br>М.П.</td>
-                    <td style="border: none; width: 50%; vertical-align: top; padding-left: 10px;"><strong>Заказчик:</strong><br>{customer_name}<br>ИНН: {customer_inn}<br><br>_______________<br>М.П.</td>
-                </tr>
-            </table>
+            <table style="width: 100%; margin-top: 20px;"><tr><td style="border: none;"><strong>Исполнитель:</strong><br>{company}<br>ИНН: {inn}<br><br>_______________<br>М.П.</td><td style="border: none;"><strong>Заказчик:</strong><br>{customer_name}<br>ИНН: {customer_inn}<br><br>_______________<br>М.П.</td></tr></table>
             </body></html>"""
             pisa.CreatePDF(html, dest=buffer)
 
         elif template == "act":
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
-            <h1 class="title">АКТ СДАЧИ-ПРИЕМКИ ОКАЗАННЫХ УСЛУГ № 1</h1>
-            <table style="margin-bottom: 20px; border: none;"><tr><td style="border: none; text-align: left;">г. Москва</td><td style="border: none; text-align: right;">{smeta_date} г.</td></tr></table>
+            <h1>АКТ СДАЧИ-ПРИЕМКИ ОКАЗАННЫХ УСЛУГ № 1</h1>
+            <p style="text-align: right;">г. Москва, {smeta_date}</p>
             <p>Мы, нижеподписавшиеся, представитель Исполнителя <strong>{company}</strong>, с одной стороны, и представитель Заказчика <strong>{customer_name}</strong>, с другой стороны, составили настоящий Акт о том, что Услуги по Договору № {dogovor_number} выполнены в полном объеме и в срок.</p>
             <p>Общая стоимость оказанных Услуг составляет <strong>{format_money(total_price)} руб.</strong>, {nds_text}.</p>
             <p>Претензий по объему, качеству и срокам оказания Услуг Заказчик не имеет.</p>
-            <table style="width: 100%; border: none; margin-top: 40px; text-indent: 0;">
-                <tr>
-                    <td style="border: none; width: 50%; vertical-align: top; padding-right: 10px;"><strong>Исполнитель:</strong><br>{company}<br><br><br>_______________<br>М.П.</td>
-                    <td style="border: none; width: 50%; vertical-align: top; padding-left: 10px;"><strong>Заказчик:</strong><br>{customer_name}<br><br><br>_______________<br>М.П.</td>
-                </tr>
-            </table>
+            <table style="width: 100%; margin-top: 40px;"><tr><td style="border: none;"><strong>Исполнитель:</strong><br>{company}<br><br><br>_______________<br>М.П.</td><td style="border: none;"><strong>Заказчик:</strong><br>{customer_name}<br><br><br>_______________<br>М.П.</td></tr></table>
             </body></html>"""
             pisa.CreatePDF(html, dest=buffer)
 
         elif template == "invoice":
-            rows = "".join([f"<tr><td style='text-align:center;'>{i+1}</td><td>{s['name']}</td><td style='text-align:center;'>шт</td><td style='text-align:center;'>{s['qty']}</td><td style='text-align:right;'>{format_money(float(s['price']))}</td><td style='text-align:right;'>{format_money(float(s['price'])*int(s['qty']))}</td></tr>" for i, s in enumerate(services)])
+            rows = "".join([f"<tr><td>{i+1}</td><td>{s['name']}</td><td>шт</td><td>{s['qty']}</td><td>{format_money(float(s['price']))}</td><td>{format_money(float(s['price'])*int(s['qty']))}</td></tr>" for i, s in enumerate(services)])
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
-            <div style="margin-bottom: 20px;">
-                <strong>{company}</strong><br>ИНН/КПП: {inn}<br>Адрес: {address}<br>Тел: {contacts}
-            </div>
-            <h1 class="title">Счет на оплату № {dogovor_number} от {smeta_date} г.</h1>
-            <table style="margin-bottom: 15px; border: none;">
-                <tr><td style="border: none; text-align: left;"><strong>Поставщик (Исполнитель):</strong><br>{company}, ИНН {inn}, {address}</td></tr>
-                <tr><td style="border: none; text-align: left;"><strong>Покупатель (Заказчик):</strong><br>{customer_name}, ИНН {customer_inn}</td></tr>
-            </table>
-            <table><tr><th style="text-align:center; width: 5%;">№</th><th style="width: 45%;">Наименование</th><th style="text-align:center; width: 10%;">Ед.</th><th style="text-align:center; width: 10%;">Кол-во</th><th style="text-align:right; width: 15%;">Цена</th><th style="text-align:right; width: 15%;">Сумма</th></tr>{rows}
+            <div><strong>{company}</strong><br>ИНН: {inn}<br>Адрес: {address}</div>
+            <h1>Счет на оплату № {dogovor_number} от {smeta_date}</h1>
+            <p><strong>Поставщик:</strong> {company}, ИНН {inn}<br><strong>Покупатель:</strong> {customer_name}, ИНН {customer_inn}</p>
+            <table><tr><th>№</th><th>Наименование</th><th>Ед.</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr>{rows}
             <tr><td colspan="5" style="text-align:right;font-weight:bold;">Итого:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr>
             <tr><td colspan="5" style="text-align:right;font-weight:bold;">{nds_text}</td><td style="text-align:right;font-weight:bold;">0,00</td></tr>
             <tr><td colspan="5" style="text-align:right;font-weight:bold;">Всего к оплате:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr></table>
-            <table style="width: 100%; border: none; margin-top: 40px; text-indent: 0;">
-                <tr>
-                    <td style="border: none; width: 50%; vertical-align: top; padding-right: 10px;"><strong>Руководитель:</strong><br><br><br>_______________<br><br>М.П.</td>
-                    <td style="border: none; width: 50%; vertical-align: top; padding-left: 10px;"><strong>Главный бухгалтер:</strong><br><br><br>_______________</td>
-                </tr>
-            </table>
+            <table style="width: 100%; margin-top: 40px;"><tr><td style="border: none;"><strong>Руководитель:</strong><br><br><br>_______________<br><br>М.П.</td><td style="border: none;"><strong>Главный бухгалтер:</strong><br><br><br>_______________</td></tr></table>
             </body></html>"""
             pisa.CreatePDF(html, dest=buffer)
 
