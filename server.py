@@ -21,7 +21,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" 
+# --- НОВЫЙ ТОКЕН ОТ @GenDocAppBot ---
+BOT_TOKEN = "9065574882:AAEiC0Ls-YC1ADejERPNLcZSdEJS7qCZe_I" 
 
 def decline_fio(fio):
     if not fio: return ""
