@@ -37,20 +37,27 @@
 <body>
     <div class="header"><div class="logo">Gen<span>Doc</span></div></div>
 
+    <!-- ПРОФИЛЬ -->
     <div id="profileSection" class="step-card">
         <div class="step-header"><div class="step-number">1</div>Профиль компании</div>
+        
         <input type="text" id="companyInput" class="input-text" placeholder="Название компании (в кавычках)" value='ООО "Тест"'>
+        
         <div style="display: flex; gap: 10px;">
             <input type="text" id="innInput" class="input-text" placeholder="ИНН" value="1234567890">
             <button class="btn-secondary" style="width: auto; white-space: nowrap; margin-bottom: 10px;" onclick="fetchCompanyData()">Найти по ИНН</button>
         </div>
+
         <input type="text" id="addressInput" class="input-text" placeholder="Юридический адрес" value="123456, г. Москва, ул. Ленина, д. 1">
         <input type="text" id="contactInput" class="input-text" placeholder="Контакты" value="+7 999 999-99-99">
+        
         <button class="btn-generate" id="btnSaveProfile" style="background: #444;">Сохранить профиль</button>
     </div>
 
+    <!-- ДОКУМЕНТЫ -->
     <div id="generateSection" class="step-card">
         <div class="step-header"><div class="step-number">2</div>Данные документа</div>
+        
         <div class="templates">
             <button class="tpl-btn active" onclick="setTemplate('kp', this)">КП</button>
             <button class="tpl-btn" onclick="setTemplate('smeta', this)">Смета</button>
@@ -84,6 +91,7 @@
         </div>
 
         <button class="btn-generate" id="btnGenerateDoc" style="margin-top: 15px;">Создать документ 📄</button>
+        
         <div class="disclaimer">⚠️ <b>Внимание!</b> Бот использует шаблоны и может допускать ошибки. Обязательно проверяйте итоговый файл.</div>
         <div class="status-text" id="statusText"></div>
     </div>
@@ -106,7 +114,8 @@
         async function loadProfile() {
             if (!chatId) return;
             try {
-                const res = await fetch(`https://genkart-app.onrender.com/get-profile?chat_id=${chatId}`);
+                // НОВАЯ ССЫЛКА
+                const res = await fetch(`https://genkart-app-final.onrender.com/get-profile?chat_id=${chatId}`);
                 const data = await res.json();
                 if (data.status === "ok") {
                     document.getElementById('companyInput').value = data.company;
@@ -152,7 +161,8 @@
             fd.append('inn', document.getElementById('innInput').value);
             fd.append('address', document.getElementById('addressInput').value); fd.append('contacts', document.getElementById('contactInput').value);
             try {
-                const res = await fetch('https://genkart-app.onrender.com/save-profile', { method: 'POST', body: fd });
+                // НОВАЯ ССЫЛКА
+                const res = await fetch('https://genkart-app-final.onrender.com/save-profile', { method: 'POST', body: fd });
                 if (res.ok) { btn.textContent = "Сохранено!"; setTimeout(() => btn.textContent = "Сохранить профиль", 2000); } else { btn.textContent = "Ошибка сервера"; }
             } catch (e) { btn.textContent = "Ошибка сети"; }
         });
@@ -185,7 +195,8 @@
             }
 
             try {
-                const res = await fetch('https://genkart-app.onrender.com/generate-doc', { method: 'POST', body: fd });
+                // НОВАЯ ССЫЛКА
+                const res = await fetch('https://genkart-app-final.onrender.com/generate-doc', { method: 'POST', body: fd });
                 if (res.ok) { tg.showAlert("Документ отправлен в чат!"); statusText.textContent = "Готово!"; } else { statusText.textContent = "Ошибка сервера."; }
             } catch (e) { statusText.textContent = "Ошибка сети."; } finally { btn.disabled = false; btn.textContent = "Создать документ 📄"; }
         });
