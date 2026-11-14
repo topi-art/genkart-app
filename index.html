@@ -51,7 +51,7 @@
     <div id="profileSection" class="step-card">
         <div class="step-header"><div class="step-number">1</div>Профиль компании</div>
         
-        <input type="text" id="companyInput" class="input-text" placeholder="Название компании" value="ООО Тест">
+        <input type="text" id="companyInput" class="input-text" placeholder="Название компании (в кавычках)" value='ООО "Тест"'>
         
         <div style="display: flex; gap: 10px;">
             <input type="text" id="innInput" class="input-text" placeholder="ИНН" value="1234567890">
@@ -67,7 +67,7 @@
             <option value="osno">ОСНО (С НДС 22%)</option>
         </select>
 
-        <input type="text" id="directorInput" class="input-text" placeholder="ФИО Директора (им. падеж)" value="Иванов И.И.">
+        <input type="text" id="directorInput" class="input-text" placeholder="ФИО Директора (Иванов И.И.)" value="Иванов И.И.">
         <input type="text" id="directorPosInput" class="input-text" placeholder="Должность (род. падеж)" value="Генерального директора">
         <input type="text" id="directorPosNomInput" class="input-text" placeholder="Должность (им. падеж)" value="Генеральный директор">
         
@@ -98,7 +98,7 @@
 
         <div id="servicesContainer">
             <div class="service-row">
-                <input type="text" class="input-text input-name" placeholder="Услуга" value="Транспортировка">
+                <input type="text" class="input-text input-name" placeholder="Услуга" value='Транспортировка груза по маршруту Москва-Тверь'>
                 <input type="text" class="input-text input-unit" placeholder="Ед." value="рейс">
                 <input type="text" class="input-text input-qty" placeholder="Кол-во" value="1">
                 <input type="text" class="input-text input-price" placeholder="Цена" value="10000">
@@ -106,25 +106,26 @@
             </div>
         </div>
         <button class="btn-secondary" onclick="addService()" style="margin-top: 5px;">+ Добавить услугу</button>
-        <input type="text" id="termInput" class="input-text" placeholder="Сроки (дней)" value="30" style="margin-top: 10px;">
+        <input type="text" id="termInput" class="input-text" placeholder="Сроки" value="1 рейс" style="margin-top: 10px;">
 
         <div id="dogovorFields" class="dynamic-fields">
-            <input type="text" id="dogovorNumber" class="input-text" placeholder="Номер договора" value="15/26">
+            <input type="text" id="dogovorNumber" class="input-text" placeholder="Номер договора" value="б/н">
             <input type="text" id="dogovorDate" class="input-text" placeholder="Дата договора" value="12.11.2026">
-            <input type="text" id="customerName" class="input-text" placeholder="Наименование Заказчика" value="ООО Заказчик">
+            <input type="text" id="customerName" class="input-text" placeholder="Наименование Заказчика" value='ООО "Заказчик"'>
             <input type="text" id="customerInn" class="input-text" placeholder="ИНН Заказчика" value="0987654321">
             <input type="text" id="customerKpp" class="input-text" placeholder="КПП Заказчика" value="098701001">
             <input type="text" id="customerAddress" class="input-text" placeholder="Адрес Заказчика" value="654321, г. Казань, ул. Пушкина, д. 2">
             <input type="text" id="customerDirector" class="input-text" placeholder="ФИО представителя (им. падеж)" value="Петров П.П.">
-            <input type="text" id="customerPos" class="input-text" placeholder="Должность представителя (род. падеж)" value="Генерального директора">
-            <input type="text" id="customerPosNom" class="input-text" placeholder="Должность представителя (им. падеж)" value="Генеральный директор">
+            <input type="text" id="customerPos" class="input-text" placeholder="Должность (род. падеж)" value="Генерального директора">
+            <input type="text" id="customerPosNom" class="input-text" placeholder="Должность (им. падеж)" value="Генеральный директор">
+            <input type="text" id="customerPosDat" class="input-text" placeholder="Должность (дат. падеж, для КП)" value="Генеральному директору">
         </div>
 
         <div id="smetaFields" class="dynamic-fields">
-            <input type="text" id="smetaNumber" class="input-text" placeholder="Номер договора" value="15/26">
+            <input type="text" id="smetaNumber" class="input-text" placeholder="Номер договора" value="б/н">
             <input type="text" id="smetaDate" class="input-text" placeholder="Дата документа" value="12.11.2026">
             <input type="text" id="smetaAppendix" class="input-text" placeholder="Номер приложения" value="1">
-            <input type="text" id="smetaCustomerName" class="input-text" placeholder="Наименование Заказчика" value="ООО Заказчик">
+            <input type="text" id="smetaCustomerName" class="input-text" placeholder="Наименование Заказчика" value='ООО "Заказчик"'>
             <input type="text" id="smetaCustomerDirector" class="input-text" placeholder="ФИО представителя" value="Петров П.П.">
         </div>
 
@@ -270,12 +271,12 @@
                 fd.append('customer_director', document.getElementById('customerDirector').value);
                 fd.append('customer_pos', document.getElementById('customerPos').value);
                 fd.append('customer_pos_nom', document.getElementById('customerPosNom').value);
+                fd.append('customer_pos_dat', document.getElementById('customerPosDat').value);
             }
             if (currentTemplate === 'smeta' || currentTemplate === 'act' || currentTemplate === 'invoice') {
                 fd.append('dogovor_number', document.getElementById('smetaNumber').value); fd.append('smeta_date', document.getElementById('smetaDate').value);
                 fd.append('smeta_appendix', document.getElementById('smetaAppendix').value); fd.append('customer_name', document.getElementById('smetaCustomerName').value);
                 fd.append('customer_director', document.getElementById('smetaCustomerDirector').value);
-                // Для Акта/Сметы/Счета берем данные из Договора, если они заполнены
                 fd.append('customer_inn', document.getElementById('customerInn').value);
                 fd.append('customer_kpp', document.getElementById('customerKpp').value);
                 fd.append('customer_address', document.getElementById('customerAddress').value);
