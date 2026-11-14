@@ -1,14 +1,23 @@
 from fastapi import FastAPI, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+import io
 import json
 import requests
 from datetime import datetime
+from fpdf import FPDF
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-# --- ТОКЕН СТАРОГО БОТА ---
-BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58"
+BOT_TOKEN = "9195903180:AAGSvvim9LlwkYhCCNRoFk_e09OQ_Fyh_58" # Старый токен
+
+class PDF(FPDF):
+    def header(self):
+        # Добавляем шрифт с поддержкой кириллицы
+        self.add_font('DejaVu', '', 'https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans.ttf', uni=True)
+        self.set_font('DejaVu', '', 10)
+        self.cell(0, 10, 'Документ сгенерирован автоматически', 0, 1, 'C')
 
 @app.get("/")
 def read_root(): return {"status": "ok"}
@@ -17,6 +26,9 @@ def read_root(): return {"status": "ok"}
 async def generate_doc(
     template: str = Form("kp"), 
     company: str = Form("ООО Ваша компания"), 
+    inn: str = Form("0000000000"),
+    address: str = Form("г. Москва"),
+    contacts: str = Form("+7 (999) 999-99-99"),
     services_json: str = Form("[]"), 
     chat_id: str = Form(None)
 ):
@@ -24,27 +36,61 @@ async def generate_doc(
         services = json.loads(services_json)
         total_price = sum(float(s['price']) * int(s['qty']) for s in services)
         
-        # Формируем красивый текст
-        text = f"📄 <b>Документ: {template.upper()}</b>\n\n"
-        text += f"🏢 <b>Компания:</b> {company}\n"
-        text += f"📅 <b>Дата:</b> {datetime.now().strftime('%d.%m.%Y')}\n\n"
-        text += "📋 <b>Услуги:</b>\n"
+        pdf = PDF()
+        pdf.add_page()
         
-        for s in services:
+        # Шапка
+        pdf.set_font('DejaVu', '', 12)
+        pdf.multi_cell(0, 8, f"{company}\nИНН: {inn}\nАдрес: {address}\nТел: {contacts}")
+        pdf.ln(10)
+        
+        # Заголовок
+        pdf.set_font('DejaVu', 'B', 14)
+        title = "КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ" if template == "kp" else "СМЕТА"
+        pdf.cell(0, 10, title, 0, 1, 'C')
+        pdf.ln(10)
+        
+        # Дата и номер
+        pdf.set_font('DejaVu', '', 10)
+        pdf.cell(0, 8, f"Дата: {datetime.now().strftime('%d.%m.%Y')}", 0, 1, 'R')
+        pdf.ln(5)
+        
+        # Таблица
+        pdf.set_font('DejaVu', 'B', 10)
+        pdf.cell(10, 8, '№', 1)
+        pdf.cell(100, 8, 'Наименование', 1)
+        pdf.cell(20, 8, 'Кол-во', 1)
+        pdf.cell(40, 8, 'Сумма', 1)
+        pdf.ln()
+        
+        pdf.set_font('DejaVu', '', 10)
+        for i, s in enumerate(services):
             amount = float(s['price']) * int(s['qty'])
-            text += f"• {s['name']} | Кол-во: {s['qty']} | Сумма: {amount:,.2f} руб.\n"
+            pdf.cell(10, 8, str(i+1), 1)
+            pdf.cell(100, 8, s['name'][:40], 1)
+            pdf.cell(20, 8, str(s['qty']), 1)
+            pdf.cell(40, 8, f"{amount:,.2f} руб.", 1)
+            pdf.ln()
             
-        text += f"\n💰 <b>ИТОГО: {total_price:,.2f} руб.</b>"
+        pdf.ln(5)
+        pdf.set_font('DejaVu', 'B', 12)
+        pdf.cell(0, 10, f"ИТОГО: {total_price:,.2f} руб.", 0, 1, 'R')
         
+        # Сохраняем в буфер
+        buffer = io.BytesIO()
+        pdf.output(buffer)
+        buffer.seek(0)
+
         if chat_id:
-            url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-            data = {'chat_id': chat_id, 'text': text, 'parse_mode': 'HTML'}
+            url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
+            files = {'document': ('document.pdf', buffer.getvalue(), 'application/pdf')}
+            data = {'chat_id': chat_id, 'caption': 'Ваш документ готов!'}
             
-            response = requests.post(url, data=data)
+            response = requests.post(url, files=files, data=data)
             if response.status_code == 200:
                 return {"status": "ok", "message": "Отправлено"}
             else:
-                return {"status": "error", "message": response.text}
+                return JSONResponse(status_code=500, content={"status": "error", "message": response.text})
         return {"status": "error", "message": "Нет chat_id"}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
