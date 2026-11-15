@@ -1,6 +1,17 @@
+import subprocess
+import sys
+import os
+
+try:
+    import fpdf
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "fpdf2"])
+
 from fastapi import FastAPI, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
+from sqlalchemy import create_engine, Column, String, Integer
+from sqlalchemy.orm import declarative_base, sessionmaker
 import io, json, requests
 from datetime import datetime
 from fpdf import FPDF
@@ -8,8 +19,23 @@ from fpdf import FPDF
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-# Токен твоего бота
 BOT_TOKEN = "9065574882:AAEiC0Ls-YC1ADejERPNLcZSdEJS7qCZe_I"
+
+DATABASE_URL = "sqlite:///./profiles_final.db"
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+class Profile(Base):
+    __tablename__ = "profiles"
+    id = Column(Integer, primary_key=True, index=True)
+    chat_id = Column(String, unique=True, index=True)
+    company = Column(String, default="")
+    inn = Column(String, default="")
+    address = Column(String, default="")
+    contacts = Column(String, default="")
+
+Base.metadata.create_all(bind=engine)
 
 class PDF(FPDF):
     def header(self):
@@ -17,23 +43,37 @@ class PDF(FPDF):
         self.set_font('DejaVu', '', 10)
         self.cell(0, 10, 'Документ сгенерирован автоматически', 0, 1, 'C')
 
-# ГЛАВНАЯ СТРАНИЦА (отдаем index.html)
 @app.get("/")
 def read_root(): 
     return FileResponse("index.html")
 
-# --- ЭНДПОИНТЫ ДЛЯ ПРОФИЛЯ (чтобы кнопка "Сохранить" не выдавала ошибку) ---
 @app.get("/get-profile")
 async def get_profile(chat_id: str):
+    db = SessionLocal()
+    profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
+    db.close()
+    if profile:
+        return {"status": "ok", "company": profile.company, "inn": profile.inn, "address": profile.address, "contacts": profile.contacts}
     return {"status": "not_found"}
 
 @app.post("/save-profile")
 async def save_profile(
-    chat_id: str = Form(None), company: str = Form(""), inn: str = Form(""), address: str = Form(""), contacts: str = Form("")
+    chat_id: str = Form(...), company: str = Form(""), inn: str = Form(""), address: str = Form(""), contacts: str = Form("")
 ):
-    return {"status": "ok"}
+    db = SessionLocal()
+    try:
+        profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
+        if profile:
+            profile.company, profile.inn, profile.address, profile.contacts = company, inn, address, contacts
+        else:
+            db.add(Profile(chat_id=chat_id, company=company, inn=inn, address=address, contacts=contacts))
+        db.commit()
+        return {"status": "ok"}
+    except Exception as e: 
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+    finally: 
+        db.close()
 
-# --- ГЕНЕРАЦИЯ PDF ---
 @app.post("/generate-doc")
 async def generate_doc(
     template: str = Form("kp"), company: str = Form("ООО Ваша компания"), 
