@@ -38,6 +38,7 @@ def get_signature_fio(fio):
     return fio
 
 def clean_quotes(text):
+    if not text: return ""
     return text.replace('"', '«', 1).replace('"', '»', 1) if '"' in text else text
 
 DATABASE_URL = "sqlite:///./profiles_final.db"
@@ -131,7 +132,7 @@ async def generate_doc(
     template: str = Form("kp"), company: str = Form(""), inn: str = Form(""), kpp: str = Form(""), 
     address: str = Form(""), contacts: str = Form(""), tax_mode: str = Form("usn"),
     director: str = Form(""), services_json: str = Form("[]"), term: str = Form(""), dogovor_number: str = Form(""), 
-    customer_name: str = Form(""), customer_inn: str = Form(""), customer_address: str = Form(""), customer_director: str = Form(""), 
+    customer_name: str = Form(""), customer_inn: str = Form(""), customer_kpp: str = Form(""), customer_address: str = Form(""), customer_director: str = Form(""), 
     smeta_date: str = Form(""), smeta_appendix: str = Form("1"), chat_id: str = Form(None),
     bank_name: str = Form(None), bik: str = Form(None), rs: str = Form(None), ks: str = Form(None)
 ):
@@ -149,6 +150,9 @@ async def generate_doc(
         dir_sign = get_signature_fio(director)
         cust_sign = get_signature_fio(customer_director)
         sum_propis = num2words_rub(total_price)
+        
+        kpp_str = f", КПП: {kpp}" if kpp else ""
+        cust_kpp_str = f", КПП: {customer_kpp}" if customer_kpp else ""
 
         if template == "kp":
             rows = "".join([f"<tr><td style='text-align:center;'>{i+1}</td><td>{s['name']}</td><td style='text-align:center;'>{s.get('unit', 'усл.')}</td><td style='text-align:center;'>{s['qty']}</td><td style='text-align:right;'>{format_money(float(s['price']))}</td><td style='text-align:right;'>{format_money(float(s['price'])*int(s['qty']))}</td></tr>" for i, s in enumerate(services)])
@@ -172,9 +176,10 @@ async def generate_doc(
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
             <table class="meta"><tr><td style="text-align:right;">Приложение № {smeta_appendix} к Договору № {dogovor_number} от {smeta_date_to_use}</td></tr></table>
             <h1 class="title">Смета № {smeta_appendix}</h1>
+            <p style="text-align:center; text-indent:0;">от {smeta_date_to_use} г.</p>
             <table><tr><th style="text-align:center; width: 5%;">№</th><th style="width: 40%;">Наименование</th><th style="text-align:center; width: 10%;">Ед.</th><th style="text-align:center; width: 10%;">Кол-во</th><th style="text-align:right; width: 15%;">Цена</th><th style="text-align:right; width: 15%;">Сумма</th></tr>{rows}<tr><td colspan="5" style="text-align:right;font-weight:bold;">Всего:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr></table>
             <p><strong>Всего наименований {len(services)}, на сумму {format_money(total_price)} руб. ({sum_propis}).</strong> {nds_text}.</p>
-            <table style="width: 100%; border: none; margin-top: 30px; text-indent: 0;"><tr><td style="border: none; width: 50%;"><strong>Исполнитель:</strong><br>{clean_quotes(company)}<br>ИНН: {inn}<br>Адрес: {address}<br><br><br>_______________ / {director} /<br>М.П.</td><td style="border: none; width: 50%;"><strong>Заказчик:</strong><br>{clean_quotes(customer_name)}<br>ИНН: {customer_inn}<br>Адрес: {customer_address}<br><br><br>_______________ / {customer_director} /<br>М.П.</td></tr></table>
+            <table style="width: 100%; border: none; margin-top: 30px; text-indent: 0;"><tr><td style="border: none; width: 50%;"><strong>Исполнитель:</strong><br>{clean_quotes(company)}<br>ИНН: {inn}{kpp_str}<br>Адрес: {address}<br><br>Генеральный директор<br>_______________ / {director} /<br>М.П.</td><td style="border: none; width: 50%;"><strong>Заказчик:</strong><br>{clean_quotes(customer_name)}<br>ИНН: {customer_inn}{cust_kpp_str}<br>Адрес: {customer_address}<br><br>Генеральный директор<br>_______________ / {customer_director} /<br>М.П.</td></tr></table>
             </body></html>"""
             pisa.CreatePDF(html, dest=buffer)
 
@@ -182,7 +187,7 @@ async def generate_doc(
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
             <h1 class="title">ДОГОВОР ОКАЗАНИЯ УСЛУГ № {dogovor_number}</h1>
             <table class="meta"><tr><td style="text-align: left;">г. Москва</td><td style="text-align: right;">{date_to_use} г.</td></tr></table>
-            <p>{clean_quotes(company)}, в лице Генерального директора {dir_rod}, действующего на основании Устава, с одной стороны, и {clean_quotes(customer_name)} (ИНН: {customer_inn}, адрес: {customer_address}), в лице Генерального директора {cust_rod}, действующего на основании Устава, с другой стороны, заключили Договор:</p>
+            <p>{clean_quotes(company)}, в лице Генерального директора {dir_rod}, действующего на основании Устава, с одной стороны, и {clean_quotes(customer_name)} (ИНН: {customer_inn}{cust_kpp_str}, адрес: {customer_address}), в лице Генерального директора {cust_rod}, действующего на основании Устава, с другой стороны, заключили Договор:</p>
             <div class="section-title">1. ПРЕДМЕТ ДОГОВОРА</div>
             <p>1.1. Исполнитель обязуется оказать следующие услуги: <strong>{services[0]['name'] if services else 'Услуги'}</strong>.</p>
             <div class="section-title">2. СТОИМОСТЬ И ПОРЯДОК РАСЧЕТОВ</div>
@@ -190,10 +195,12 @@ async def generate_doc(
             <p>2.2. Оплата 100% в течение 3 банковских дней с момента подписания Акта.</p>
             <div class="section-title">3. ПОРЯДОК СДАЧИ-ПРИЕМКИ</div>
             <p>3.1. Заказчик обязан в течение 3 рабочих дней подписать Акт или направить мотивированный отказ. В случае отсутствия отказа, услуги считаются принятыми.</p>
+            <div class="section-title">4. ОТВЕТСТВЕННОСТЬ СТОРОН</div>
+            <p>4.1. За неисполнение или ненадлежащее исполнение обязательств по настоящему Договору Стороны несут ответственность в соответствии с действующим законодательством РФ.</p>
             <div class="section-title">5. РЕКВИЗИТЫ И ПОДПИСИ СТОРОН</div>
             <table style="width: 100%; border: none; margin-top: 20px; text-indent: 0;"><tr>
-                <td style="border: none; width: 50%; vertical-align: top;"><strong>Исполнитель:</strong><br>{clean_quotes(company)}<br>ИНН: {inn}<br>Адрес: {address}<br><br>_______________ / {director} /<br>М.П.</td>
-                <td style="border: none; width: 50%; vertical-align: top;"><strong>Заказчик:</strong><br>{clean_quotes(customer_name)}<br>ИНН: {customer_inn}<br>Адрес: {customer_address}<br><br>_______________ / {customer_director} /<br>М.П.</td>
+                <td style="border: none; width: 50%; vertical-align: top;"><strong>Исполнитель:</strong><br>{clean_quotes(company)}<br>ИНН: {inn}{kpp_str}<br>Адрес: {address}<br><br>_______________ / {director} /<br>М.П.</td>
+                <td style="border: none; width: 50%; vertical-align: top;"><strong>Заказчик:</strong><br>{clean_quotes(customer_name)}<br>ИНН: {customer_inn}{cust_kpp_str}<br>Адрес: {customer_address}<br><br>_______________ / {customer_director} /<br>М.П.</td>
             </tr></table></body></html>"""
             pisa.CreatePDF(html, dest=buffer)
 
@@ -207,8 +214,8 @@ async def generate_doc(
             <p><strong>Всего наименований {len(services)}, на сумму {format_money(total_price)} руб. ({sum_propis}).</strong> {nds_text}.</p>
             <p>Претензий по объему, качеству и срокам оказания Услуг Заказчик не имеет.</p>
             <table style="width: 100%; border: none; margin-top: 40px; text-indent: 0;"><tr>
-                <td style="border: none; width: 50%; vertical-align: top;"><strong>Исполнитель:</strong><br>{clean_quotes(company)}<br>ИНН: {inn}<br>Адрес: {address}<br><br>_______________ / {director} /<br>М.П.</td>
-                <td style="border: none; width: 50%; vertical-align: top;"><strong>Заказчик:</strong><br>{clean_quotes(customer_name)}<br>ИНН: {customer_inn}<br>Адрес: {customer_address}<br><br>_______________ / {customer_director} /<br>М.П.</td>
+                <td style="border: none; width: 50%; vertical-align: top;"><strong>Исполнитель:</strong><br>{clean_quotes(company)}<br>ИНН: {inn}{kpp_str}<br>Адрес: {address}<br><br>Генеральный директор<br>_______________ / {director} /<br>М.П.</td>
+                <td style="border: none; width: 50%; vertical-align: top;"><strong>Заказчик:</strong><br>{clean_quotes(customer_name)}<br>ИНН: {customer_inn}{cust_kpp_str}<br>Адрес: {customer_address}<br><br>Генеральный директор<br>_______________ / {customer_director} /<br>М.П.</td>
             </tr></table></body></html>"""
             pisa.CreatePDF(html, dest=buffer)
 
@@ -219,7 +226,7 @@ async def generate_doc(
             bank_table = f"""<table style="width: 100%; border-collapse: collapse; text-indent: 0; font-size: 10pt; margin-bottom: 20px;">
                 <tr><td style="border: 1px solid #000; padding: 5px; width: 15%;">Банк получателя:</td><td style="border: 1px solid #000; padding: 5px;" colspan="3">{bank_name or "____________________"}</td></tr>
                 <tr><td style="border: 1px solid #000; padding: 5px;">БИК:</td><td style="border: 1px solid #000; padding: 5px; width: 35%;">{bik or "__________"}</td><td style="border: 1px solid #000; padding: 5px; width: 15%;">Сч. №:</td><td style="border: 1px solid #000; padding: 5px;">{ks or "____________________"}</td></tr>
-                <tr><td style="border: 1px solid #000; padding: 5px;">Получатель:</td><td style="border: 1px solid #000; padding: 5px;" colspan="3">{clean_quotes(company)}<br>ИНН {inn} / КПП {kpp}</td></tr>
+                <tr><td style="border: 1px solid #000; padding: 5px;">Получатель:</td><td style="border: 1px solid #000; padding: 5px;" colspan="3">{clean_quotes(company)}<br>ИНН {inn} {(' / КПП ' + kpp) if kpp else ''}</td></tr>
                 <tr><td style="border: 1px solid #000; padding: 5px;">Р/с:</td><td style="border: 1px solid #000; padding: 5px;" colspan="3">{rs or "____________________"}</td></tr>
             </table>"""
             
@@ -228,8 +235,8 @@ async def generate_doc(
             {bank_table}
             <h1 class="title">Счет на оплату № {dogovor_number} от {smeta_date_to_use} г.</h1>
             <table class="meta" style="margin-bottom: 15px;">
-                <tr><td style="text-align: left;"><strong>Поставщик:</strong><br>{clean_quotes(company)}, ИНН {inn}, КПП {kpp}, {address}</td></tr>
-                <tr><td style="text-align: left; padding-top: 5px;"><strong>Покупатель:</strong><br>{clean_quotes(customer_name)}, ИНН {customer_inn}, {customer_address}</td></tr>
+                <tr><td style="text-align: left;"><strong>Поставщик:</strong><br>{clean_quotes(company)}, ИНН {inn}{kpp_str}, {address}</td></tr>
+                <tr><td style="text-align: left; padding-top: 5px;"><strong>Покупатель:</strong><br>{clean_quotes(customer_name)}, ИНН {customer_inn}{cust_kpp_str}, {customer_address}</td></tr>
             </table>
             <table>
                 <tr><th style="text-align:center; width: 5%;">№</th><th style="width: 45%;">Наименование</th><th style="text-align:center; width: 10%;">Ед.</th><th style="text-align:center; width: 10%;">Кол-во</th><th style="text-align:right; width: 15%;">Цена</th><th style="text-align:right; width: 15%;">Сумма</th></tr>
