@@ -11,7 +11,7 @@ from num2words import num2words
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-# РАБОЧИЙ ТОКЕН
+# ТОКЕН, КОТОРЫЙ РАБОТАЕТ
 BOT_TOKEN = "8888816541:AAHr3KYdyGi3au_9xQQ83p7NVvI9A1Yp_xE" 
 MY_CHAT_ID = "1124115675"
 
@@ -55,9 +55,11 @@ class Profile(Base):
 
 Base.metadata.create_all(bind=engine)
 
+# ВОЗВРАЩАЕМ ШРИФТ PTSANS
 CSS_STYLES = """
 @page { size: a4; margin: 20mm 15mm 20mm 30mm; }
-body { font-family: "Helvetica", sans-serif; font-size: 11pt; line-height: 1.35; text-align: justify; color: #000; text-indent: 1.25cm; }
+@font-face { font-family: "PTSans"; src: url("https://github.com/google/fonts/raw/main/ofl/ptsans/PT_Sans-Web-Regular.ttf"); }
+body { font-family: "PTSans", sans-serif; font-size: 11pt; line-height: 1.35; text-align: justify; color: #000; text-indent: 1.25cm; }
 h1.title { text-align: center; font-size: 14pt; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; text-indent: 0; }
 .meta { width: 100%; margin-bottom: 20px; text-indent: 0; }
 .meta td { border: none; padding: 0; }
