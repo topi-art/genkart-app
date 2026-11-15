@@ -11,7 +11,6 @@ from num2words import num2words
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-# ТОКЕН (GenDoc Помощник)
 BOT_TOKEN = "8888816541:AAHr3KYdyGi3au_9xQQ83p7NVvI9A1Yp_xE" 
 
 def decline_fio(fio):
@@ -40,12 +39,11 @@ def get_signature_fio(fio):
 def clean_text(text):
     if not text: return ""
     text = text.strip()
-    # Меняем кавычки на елочки
-    text = text.replace('"', '«', 1).replace('"', '»', 1) if '"' in text else text
-    text = text.replace('»', '»').replace('"', '»')
-    # Добавляем точку, если нет
-    if text and text[-1] not in ['.', '!', '?']:
-        text += '.'
+    # Правильные кавычки-елочки
+    if '"' in text:
+        text = text.replace('"', '«', 1).replace('"', '»', 1)
+    # Убираем лишние точки в конце (чтобы не было АО «Ромашка».)
+    text = text.rstrip('.')
     return text
 
 DATABASE_URL = "sqlite:///./profiles_final.db"
@@ -99,9 +97,13 @@ def num2words_rub(num):
         return f"{format_money(num)} рублей"
 
 def get_header_html(company, inn, kpp, address, contacts):
-    kpp_str = f"/{kpp}" if kpp else ""
+    if kpp:
+        inn_kpp_str = f"ИНН/КПП: {inn}/{kpp}"
+    else:
+        inn_kpp_str = f"ИНН: {inn}"
+        
     tel_html = f"<br>Тел: {contacts}" if contacts else ""
-    return f"<div class='header-info'><strong>{clean_text(company)}</strong><br>ИНН/КПП: {inn}{kpp_str}<br>Адрес: {clean_text(address)}{tel_html}</div>"
+    return f"<div class='header-info'><strong>{clean_text(company)}</strong><br>{inn_kpp_str}<br>Адрес: {clean_text(address)}{tel_html}</div>"
 
 @app.get("/")
 def read_root(): 
@@ -164,12 +166,15 @@ async def generate_doc(
 
         if template == "kp":
             rows = "".join([f"<tr><td style='text-align:center;'>{i+1}</td><td>{s['name']}</td><td style='text-align:center;'>{s.get('unit', 'усл.')}</td><td style='text-align:center;'>{s['qty']}</td><td style='text-align:right;'>{format_money(float(s['price']))}</td><td style='text-align:right;'>{format_money(float(s['price'])*int(s['qty']))}</td></tr>" for i, s in enumerate(services)])
+            
             customer_greeting = get_short_name(customer_director) if customer_director else "клиент"
             greeting = f"Уважаемый {customer_greeting}!" if customer_greeting != "клиент" else "Уважаемый клиент!"
-                
+            
+            # Убираем М.П. из КП по совету ИИ
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
             {header_html}
             <table class="meta"><tr><td style="text-align:right;">Исх. № {dogovor_number} от {date_to_use} г.</td></tr></table>
+            <p style="text-align:right; text-indent:0;"><strong>Кому:</strong><br>Генеральному директору<br>{clean_text(customer_name)}<br>{customer_director}</p>
             <h1 class="title">Коммерческое предложение<br>на оказание услуг</h1>
             <p>{greeting} {clean_text(company)} предлагает вам следующие услуги:</p>
             <table><tr><th style="text-align:center; width: 5%;">№</th><th style="width: 45%;">Наименование услуги</th><th style="text-align:center; width: 10%;">Ед.</th><th style="text-align:center; width: 10%;">Кол-во</th><th style="text-align:right; width: 15%;">Цена</th><th style="text-align:right; width: 15%;">Сумма</th></tr>{rows}
@@ -177,7 +182,7 @@ async def generate_doc(
             <p style="text-indent: 0; margin-top: 10px;">{nds_text}.</p>
             <p class="list-item">1. Срок действия предложения: 14 календарных дней.</p>
             <p class="list-item">2. Условия оплаты: 100% в течение 5 рабочих дней после подписания акта.</p>
-            <div class="signature-block"><strong>С уважением,</strong><br><br>Генеральный директор<br>{clean_text(company)}<br><br><br>_______________ / {director} /<br>М.П.</div>
+            <div class="signature-block"><strong>С уважением,</strong><br><br>Генеральный директор<br>{clean_text(company)}<br><br><br>_______________ / {director} /</div>
             </body></html>"""
             pisa.CreatePDF(html, dest=buffer)
 
