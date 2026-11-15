@@ -285,12 +285,12 @@ async def generate_doc(
 
         buffer.seek(0)
 
-        # ОТПРАВКА В TELEGRAM (строго по chat_id из интерфейса)
         if chat_id:
             url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
             files = {'document': (f'{template}.pdf', buffer.getvalue(), 'application/pdf')}
             data = {'chat_id': chat_id, 'caption': 'Ваш документ готов! 📄'}
-            requests.post(url, files=files, data=data)
+            response = requests.post(url, files=files, data=data)
+            print("ОТВЕТ ОТ TELEGRAM:", response.text) # <--- ДОБАВЛЕНА ОТЛАДКА
             
         return {"status": "ok"}
     except Exception as e:
