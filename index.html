@@ -106,7 +106,6 @@
         async function loadProfile() {
             if (!chatId) return;
             try {
-                // ИСПРАВЛЕНО: относительный путь
                 const res = await fetch(`/get-profile?chat_id=${chatId}`);
                 const data = await res.json();
                 if (data.status === "ok") {
@@ -153,7 +152,6 @@
             fd.append('inn', document.getElementById('innInput').value);
             fd.append('address', document.getElementById('addressInput').value); fd.append('contacts', document.getElementById('contactInput').value);
             try {
-                // ИСПРАВЛЕНО: относительный путь
                 const res = await fetch('/save-profile', { method: 'POST', body: fd });
                 if (res.ok) { btn.textContent = "Сохранено!"; setTimeout(() => btn.textContent = "Сохранить профиль", 2000); } else { btn.textContent = "Ошибка сервера"; }
             } catch (e) { btn.textContent = "Ошибка сети"; }
@@ -187,7 +185,6 @@
             }
 
             try {
-                // ИСПРАВЛЕНО: относительный путь
                 const res = await fetch('/generate-doc', { method: 'POST', body: fd });
                 if (res.ok) { tg.showAlert("Документ отправлен в чат!"); statusText.textContent = "Готово!"; } else { statusText.textContent = "Ошибка сервера."; }
             } catch (e) { statusText.textContent = "Ошибка сети."; } finally { btn.disabled = false; btn.textContent = "Создать документ 📄"; }
