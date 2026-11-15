@@ -11,7 +11,7 @@ from num2words import num2words
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-# ОСТАВЛЯЕМ ТОЛЬКО ОДИН БОТ (GenDoc Помощник)
+# РАБОЧИЙ ТОКЕН
 BOT_TOKEN = "8888816541:AAHr3KYdyGi3au_9xQQ83p7NVvI9A1Yp_xE" 
 MY_CHAT_ID = "1124115675"
 
@@ -89,12 +89,41 @@ def get_header_html(company, inn, kpp, address, contacts):
 def read_root(): 
     return FileResponse("index.html")
 
+@app.get("/get-profile")
+async def get_profile(chat_id: str):
+    db = SessionLocal()
+    profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
+    db.close()
+    if profile:
+        return {"status": "ok", "company": profile.company, "inn": profile.inn, "kpp": profile.kpp, "address": profile.address, "contacts": profile.contacts, "tax_mode": profile.tax_mode, "director": profile.director, "bank_name": profile.bank_name, "bik": profile.bik, "rs": profile.rs, "ks": profile.ks}
+    return {"status": "not_found"}
+
+@app.post("/save-profile")
+async def save_profile(
+    chat_id: str = Form(...), company: str = Form(""), inn: str = Form(""), kpp: str = Form(""), address: str = Form(""), contacts: str = Form(""),
+    tax_mode: str = Form("usn"), director: str = Form(""), bank_name: str = Form(""), bik: str = Form(""), rs: str = Form(""), ks: str = Form("")
+):
+    db = SessionLocal()
+    try:
+        profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
+        if profile:
+            profile.company, profile.inn, profile.kpp, profile.address, profile.contacts = company, inn, kpp, address, contacts
+            profile.tax_mode, profile.director = tax_mode, director
+            profile.bank_name, profile.bik, profile.rs, profile.ks = bank_name, bik, rs, ks
+        else:
+            db.add(Profile(chat_id=chat_id, company=company, inn=inn, kpp=kpp, address=address, contacts=contacts, tax_mode=tax_mode, director=director, bank_name=bank_name, bik=bik, rs=rs, ks=ks))
+        db.commit()
+        return {"status": "ok"}
+    except Exception as e: return {"status": "error", "message": str(e)}
+    finally: db.close()
+
 @app.post("/generate-doc")
 async def generate_doc(
     template: str = Form("kp"), company: str = Form(""), inn: str = Form(""), kpp: str = Form(""), 
     address: str = Form(""), contacts: str = Form(""), tax_mode: str = Form("usn"),
     director: str = Form(""), services_json: str = Form("[]"), term: str = Form(""), dogovor_number: str = Form(""), 
-    customer_name: str = Form(""), customer_inn: str = Form(""), chat_id: str = Form(None)
+    customer_name: str = Form(""), customer_inn: str = Form(""), chat_id: str = Form(None),
+    bank_name: str = Form(None), bik: str = Form(None), rs: str = Form(None), ks: str = Form(None)
 ):
     try:
         services = json.loads(services_json)
@@ -114,10 +143,10 @@ async def generate_doc(
             <p>Уважаемый клиент! {company} предлагает вам следующие услуги:</p>
             <table><tr><th style="text-align:center; width: 5%;">№</th><th style="width: 50%;">Наименование услуги</th><th style="text-align:center; width: 10%;">Ед.</th><th style="text-align:center; width: 15%;">Срок</th><th style="text-align:right; width: 20%;">Стоимость</th></tr>{rows}</table>
             <p style="text-align:right; margin-top: 10px; text-indent: 0;"><strong>Итого: {format_money(total_price)} руб.</strong></p>
-            <p class="list-item">1. Настоящее КП действительно в течение 14 календарных дней.</p>
-            <p class="list-item">2. Условия оплаты: 100% в течение 3 банковских дней после подписания Акта.</p>
+            <p class="list-item">1. КП действительно 14 дней.</p>
+            <p class="list-item">2. Оплата 100% постоплата.</p>
             <p class="list-item">3. Не является офертой (ст. 435 ГК РФ).</p>
-            <div class="signature-block"><strong>С уважением,</strong><br><br>Генеральный директор<br>{company}<br><br><br>_______________ {dir_sign}<br>М.П.</div>
+            <div class="signature-block"><strong>С уважением,</strong><br><br>Генеральный директор<br>{company}<br><br><br>_______________ / {director} /<br>М.П.</div>
             </body></html>"""
             pisa.CreatePDF(html, dest=buffer)
 
@@ -161,6 +190,12 @@ async def generate_doc(
             sum_propis = num2words_rub(total_price)
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
             {header_html}
+            <table style="width: 100%; border-collapse: collapse; text-indent: 0; font-size: 10pt; margin-bottom: 20px;">
+                <tr><td style="border: 1px solid #000; padding: 5px; width: 15%;">Банк получателя:</td><td style="border: 1px solid #000; padding: 5px;" colspan="3">{bank_name or "____________________"}</td></tr>
+                <tr><td style="border: 1px solid #000; padding: 5px;">БИК:</td><td style="border: 1px solid #000; padding: 5px; width: 35%;">{bik or "__________"}</td><td style="border: 1px solid #000; padding: 5px; width: 15%;">Сч. №:</td><td style="border: 1px solid #000; padding: 5px;">{ks or "____________________"}</td></tr>
+                <tr><td style="border: 1px solid #000; padding: 5px;">Получатель:</td><td style="border: 1px solid #000; padding: 5px;" colspan="3">{company}<br>ИНН {inn}</td></tr>
+                <tr><td style="border: 1px solid #000; padding: 5px;">Р/с:</td><td style="border: 1px solid #000; padding: 5px;" colspan="3">{rs or "____________________"}</td></tr>
+            </table>
             <h1 class="title">Счет на оплату № {dogovor_number} от {date_to_use} г.</h1>
             <table class="meta" style="margin-bottom: 15px;">
                 <tr><td style="text-align: left;"><strong>Поставщик:</strong><br>{company}, ИНН {inn}, {address}</td></tr>
@@ -170,13 +205,15 @@ async def generate_doc(
                 <tr><th style="text-align:center; width: 5%;">№</th><th style="width: 45%;">Наименование</th><th style="text-align:center; width: 10%;">Ед.</th><th style="text-align:center; width: 10%;">Кол-во</th><th style="text-align:right; width: 15%;">Цена</th><th style="text-align:right; width: 15%;">Сумма</th></tr>
                 {rows}
                 <tr><td colspan="5" style="text-align:right;font-weight:bold;">Итого:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr>
+                <tr><td colspan="5" style="text-align:right;font-weight:bold;">Без налога (НДС):</td><td style="text-align:right;font-weight:bold;">0,00</td></tr>
                 <tr><td colspan="5" style="text-align:right;font-weight:bold;">Всего к оплате:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr>
             </table>
+            <p>Всего наименований {len(services)}, на сумму {format_money(total_price)} руб.</p>
             <p>Сумма прописью: <strong>{sum_propis}</strong></p>
             <table style="width: 100%; border: none; margin-top: 40px; text-indent: 0;">
                 <tr>
-                    <td style="border: none; width: 50%; vertical-align: top;"><strong>Руководитель:</strong><br><br><br>_______________ {dir_sign}<br><br>М.П.</td>
-                    <td style="border: none; width: 50%; vertical-align: top;"><strong>Главный бухгалтер:</strong><br><br><br>_______________ {dir_sign}</td>
+                    <td style="border: none; width: 50%; vertical-align: top;"><strong>Руководитель:</strong><br><br><br>_______________ / {director} /<br><br>М.П.</td>
+                    <td style="border: none; width: 50%; vertical-align: top;"><strong>Главный бухгалтер:</strong><br><br><br>_______________ / {director} /</td>
                 </tr>
             </table>
             </body></html>"""
