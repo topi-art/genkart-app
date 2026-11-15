@@ -11,7 +11,7 @@ from num2words import num2words
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-# ТОКЕН, КОТОРЫЙ РАБОТАЕТ
+# РАБОЧИЙ ТОКЕН (GenDoc Помощник)
 BOT_TOKEN = "8888816541:AAHr3KYdyGi3au_9xQQ83p7NVvI9A1Yp_xE" 
 MY_CHAT_ID = "1124115675"
 
@@ -55,7 +55,6 @@ class Profile(Base):
 
 Base.metadata.create_all(bind=engine)
 
-# ВОЗВРАЩАЕМ ШРИФТ PTSANS
 CSS_STYLES = """
 @page { size: a4; margin: 20mm 15mm 20mm 30mm; }
 @font-face { font-family: "PTSans"; src: url("https://github.com/google/fonts/raw/main/ofl/ptsans/PT_Sans-Web-Regular.ttf"); }
@@ -124,17 +123,23 @@ async def generate_doc(
     template: str = Form("kp"), company: str = Form(""), inn: str = Form(""), kpp: str = Form(""), 
     address: str = Form(""), contacts: str = Form(""), tax_mode: str = Form("usn"),
     director: str = Form(""), services_json: str = Form("[]"), term: str = Form(""), dogovor_number: str = Form(""), 
-    customer_name: str = Form(""), customer_inn: str = Form(""), chat_id: str = Form(None),
+    customer_name: str = Form(""), customer_inn: str = Form(""), customer_address: str = Form(""), customer_director: str = Form(""), 
+    smeta_date: str = Form(""), smeta_appendix: str = Form("1"), chat_id: str = Form(None),
     bank_name: str = Form(None), bik: str = Form(None), rs: str = Form(None), ks: str = Form(None)
 ):
     try:
         services = json.loads(services_json)
         total_price = sum(float(s['price']) * int(s['qty']) for s in services)
         date_to_use = datetime.now().strftime("%d.%m.%Y")
+        smeta_date_to_use = smeta_date if smeta_date else date_to_use
         buffer = io.BytesIO()
         
+        nds_text = "В том числе НДС 22%" if tax_mode == "osno" else "НДС не облагается на основании п. 2 ст. 346.11 НК РФ (УСН)"
         header_html = get_header_html(company, inn, kpp, address, contacts)
+        dir_rod = decline_fio(director)
+        cust_rod = decline_fio(customer_director)
         dir_sign = get_signature_fio(director)
+        cust_sign = get_signature_fio(customer_director)
 
         if template == "kp":
             rows = "".join([f"<tr><td style='text-align:center;'>{i+1}</td><td>{s['name']}</td><td style='text-align:center;'>{s.get('unit', 'усл.')}</td><td style='text-align:center;'>{term}</td><td style='text-align:right;'>{format_money(float(s['price'])*int(s['qty']))} руб.</td></tr>" for i, s in enumerate(services)])
@@ -144,7 +149,7 @@ async def generate_doc(
             <h1 class="title">Коммерческое предложение<br>на оказание услуг</h1>
             <p>Уважаемый клиент! {company} предлагает вам следующие услуги:</p>
             <table><tr><th style="text-align:center; width: 5%;">№</th><th style="width: 50%;">Наименование услуги</th><th style="text-align:center; width: 10%;">Ед.</th><th style="text-align:center; width: 15%;">Срок</th><th style="text-align:right; width: 20%;">Стоимость</th></tr>{rows}</table>
-            <p style="text-align:right; margin-top: 10px; text-indent: 0;"><strong>Итого: {format_money(total_price)} руб.</strong></p>
+            <p style="text-align:right; margin-top: 10px; text-indent: 0;"><strong>Итого: {format_money(total_price)} руб.</strong><br>({nds_text})</p>
             <p class="list-item">1. КП действительно 14 дней.</p>
             <p class="list-item">2. Оплата 100% постоплата.</p>
             <p class="list-item">3. Не является офертой (ст. 435 ГК РФ).</p>
@@ -155,9 +160,11 @@ async def generate_doc(
         elif template == "smeta":
             rows = "".join([f"<tr><td style='text-align:center;'>{i+1}</td><td>{s['name']}</td><td style='text-align:center;'>{s.get('unit', 'усл.')}</td><td style='text-align:center;'>{s['qty']}</td><td style='text-align:right;'>{format_money(float(s['price']))}</td><td style='text-align:right;'>{format_money(float(s['price'])*int(s['qty']))}</td></tr>" for i, s in enumerate(services)])
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
-            <table class="meta"><tr><td style="text-align:right;">Приложение к Договору № {dogovor_number} от {date_to_use}</td></tr></table>
-            <h1 class="title">Смета</h1>
+            <table class="meta"><tr><td style="text-align:right;">Приложение № {smeta_appendix} к Договору № {dogovor_number} от {smeta_date_to_use}</td></tr></table>
+            <h1 class="title">Смета № {smeta_appendix}</h1>
             <table><tr><th style="text-align:center; width: 5%;">№</th><th style="width: 40%;">Наименование</th><th style="text-align:center; width: 10%;">Ед.</th><th style="text-align:center; width: 10%;">Кол-во</th><th style="text-align:right; width: 15%;">Цена</th><th style="text-align:right; width: 15%;">Сумма</th></tr>{rows}<tr><td colspan="5" style="text-align:right;font-weight:bold;">Всего:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr></table>
+            <p><strong>Всего наименований {len(services)}, на сумму {format_money(total_price)} руб.</strong> {nds_text}.</p>
+            <table style="width: 100%; border: none; margin-top: 30px; text-indent: 0;"><tr><td style="border: none; width: 50%;"><strong>Исполнитель:</strong><br>{company}<br>ИНН: {inn}<br>Адрес: {address}<br><br><br>_______________ / {director} /<br>М.П.</td><td style="border: none; width: 50%;"><strong>Заказчик:</strong><br>{customer_name}<br>ИНН: {customer_inn}<br>Адрес: {customer_address}<br><br><br>_______________ / {customer_director} /<br>М.П.</td></tr></table>
             </body></html>"""
             pisa.CreatePDF(html, dest=buffer)
 
@@ -165,49 +172,58 @@ async def generate_doc(
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
             <h1 class="title">ДОГОВОР ОКАЗАНИЯ УСЛУГ № {dogovor_number}</h1>
             <table class="meta"><tr><td style="text-align: left;">г. Москва</td><td style="text-align: right;">{date_to_use} г.</td></tr></table>
-            <p>{company}, в лице Генерального директора {director}, с одной стороны, и {customer_name} (ИНН: {customer_inn}), в лице Генерального директора, с другой стороны, заключили Договор:</p>
+            <p>{company}, в лице Генерального директора {dir_rod}, с одной стороны, и {customer_name} (ИНН: {customer_inn}, адрес: {customer_address}), в лице Генерального директора {cust_rod}, с другой стороны, заключили Договор:</p>
             <div class="section-title">1. ПРЕДМЕТ ДОГОВОРА</div>
-            <p>1.1. Исполнитель обязуется оказать услуги.</p>
+            <p>1.1. Исполнитель обязуется оказать следующие услуги: <strong>{services[0]['name'] if services else 'Услуги'}</strong>.</p>
             <div class="section-title">2. СТОИМОСТЬ И ПОРЯДОК РАСЧЕТОВ</div>
-            <p>2.1. Общая стоимость Услуг составляет <strong>{format_money(total_price)} руб.</strong></p>
+            <p>2.1. Общая стоимость Услуг составляет <strong>{format_money(total_price)} руб.</strong>, {nds_text}.</p>
             <div class="section-title">5. РЕКВИЗИТЫ И ПОДПИСИ СТОРОН</div>
             <table style="width: 100%; border: none; margin-top: 20px; text-indent: 0;"><tr>
                 <td style="border: none; width: 50%; vertical-align: top;"><strong>Исполнитель:</strong><br>{company}<br>ИНН: {inn}<br>Адрес: {address}<br><br>_______________ / {director} /<br>М.П.</td>
-                <td style="border: none; width: 50%; vertical-align: top;"><strong>Заказчик:</strong><br>{customer_name}<br>ИНН: {customer_inn}<br><br>_______________ / /<br>М.П.</td>
+                <td style="border: none; width: 50%; vertical-align: top;"><strong>Заказчик:</strong><br>{customer_name}<br>ИНН: {customer_inn}<br>Адрес: {customer_address}<br><br>_______________ / {customer_director} /<br>М.П.</td>
             </tr></table></body></html>"""
             pisa.CreatePDF(html, dest=buffer)
 
         elif template == "act":
             rows = "".join([f"<tr><td style='text-align:center;'>{i+1}</td><td>{s['name']}</td><td style='text-align:center;'>{s.get('unit', 'усл.')}</td><td style='text-align:center;'>{s['qty']}</td><td style='text-align:right;'>{format_money(float(s['price']))}</td><td style='text-align:right;'>{format_money(float(s['price'])*int(s['qty']))}</td></tr>" for i, s in enumerate(services)])
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
-            <h1 class="title">АКТ СДАЧИ-ПРИЕМКИ ОКАЗАННЫХ УСЛУГ</h1>
-            <table class="meta"><tr><td style="text-align: left;">г. Москва</td><td style="text-align: right;">{date_to_use} г.</td></tr></table>
-            <p>Мы, нижеподписавшиеся, представитель Исполнителя <strong>{company}</strong> в лице Генерального директора {director}, с одной стороны, и представитель Заказчика <strong>{customer_name}</strong>, с другой стороны, составили настоящий Акт о том, что Услуги по Договору № {dogovor_number} выполнены в полном объеме и в срок.</p>
+            <h1 class="title">АКТ СДАЧИ-ПРИЕМКИ ОКАЗАННЫХ УСЛУГ № {smeta_appendix}</h1>
+            <table class="meta"><tr><td style="text-align: left;">г. Москва</td><td style="text-align: right;">{smeta_date_to_use} г.</td></tr></table>
+            <p>Мы, нижеподписавшиеся, представитель Исполнителя <strong>{company}</strong> в лице Генерального директора {dir_rod}, с одной стороны, и представитель Заказчика <strong>{customer_name}</strong> в лице Генерального директора {cust_rod}, с другой стороны, составили настоящий Акт о том, что Услуги по Договору № {dogovor_number} от {date_to_use} выполнены в полном объеме и в срок.</p>
             <table><tr><th style="text-align:center; width: 5%;">№</th><th style="width: 40%;">Наименование услуги</th><th style="text-align:center; width: 10%;">Ед.</th><th style="text-align:center; width: 10%;">Кол-во</th><th style="text-align:right; width: 15%;">Цена</th><th style="text-align:right; width: 15%;">Сумма</th></tr>{rows}<tr><td colspan="5" style="text-align:right;font-weight:bold;">Всего к оплате:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr></table>
-            </body></html>"""
+            <p><strong>Всего наименований {len(services)}, на сумму {format_money(total_price)} руб.</strong> {nds_text}.</p>
+            <p>Претензий по объему, качеству и срокам оказания Услуг Заказчик не имеет.</p>
+            <table style="width: 100%; border: none; margin-top: 40px; text-indent: 0;"><tr>
+                <td style="border: none; width: 50%; vertical-align: top;"><strong>Исполнитель:</strong><br>{company}<br>ИНН: {inn}<br>Адрес: {address}<br><br>_______________ / {director} /<br>М.П.</td>
+                <td style="border: none; width: 50%; vertical-align: top;"><strong>Заказчик:</strong><br>{customer_name}<br>ИНН: {customer_inn}<br>Адрес: {customer_address}<br><br>_______________ / {customer_director} /<br>М.П.</td>
+            </tr></table></body></html>"""
             pisa.CreatePDF(html, dest=buffer)
 
         elif template == "invoice":
             rows = "".join([f"<tr><td style='text-align:center;'>{i+1}</td><td>{s['name']}</td><td style='text-align:center;'>{s.get('unit', 'усл.')}</td><td style='text-align:center;'>{s['qty']}</td><td style='text-align:right;'>{format_money(float(s['price']))}</td><td style='text-align:right;'>{format_money(float(s['price'])*int(s['qty']))}</td></tr>" for i, s in enumerate(services)])
             sum_propis = num2words_rub(total_price)
-            html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
-            {header_html}
-            <table style="width: 100%; border-collapse: collapse; text-indent: 0; font-size: 10pt; margin-bottom: 20px;">
+            nds_row = f"<tr><td colspan='5' style='text-align:right;font-weight:bold;'>В том числе НДС 22%:</td><td style='text-align:right;font-weight:bold;'>{format_money(total_price * 0.22 / 1.22)}</td></tr>" if tax_mode == "osno" else "<tr><td colspan='5' style='text-align:right;font-weight:bold;'>Без налога (НДС):</td><td style='text-align:right;font-weight:bold;'>0,00</td></tr>"
+            
+            bank_table = f"""<table style="width: 100%; border-collapse: collapse; text-indent: 0; font-size: 10pt; margin-bottom: 20px;">
                 <tr><td style="border: 1px solid #000; padding: 5px; width: 15%;">Банк получателя:</td><td style="border: 1px solid #000; padding: 5px;" colspan="3">{bank_name or "____________________"}</td></tr>
                 <tr><td style="border: 1px solid #000; padding: 5px;">БИК:</td><td style="border: 1px solid #000; padding: 5px; width: 35%;">{bik or "__________"}</td><td style="border: 1px solid #000; padding: 5px; width: 15%;">Сч. №:</td><td style="border: 1px solid #000; padding: 5px;">{ks or "____________________"}</td></tr>
                 <tr><td style="border: 1px solid #000; padding: 5px;">Получатель:</td><td style="border: 1px solid #000; padding: 5px;" colspan="3">{company}<br>ИНН {inn}</td></tr>
                 <tr><td style="border: 1px solid #000; padding: 5px;">Р/с:</td><td style="border: 1px solid #000; padding: 5px;" colspan="3">{rs or "____________________"}</td></tr>
-            </table>
-            <h1 class="title">Счет на оплату № {dogovor_number} от {date_to_use} г.</h1>
+            </table>"""
+            
+            html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
+            {header_html}
+            {bank_table}
+            <h1 class="title">Счет на оплату № {dogovor_number} от {smeta_date_to_use} г.</h1>
             <table class="meta" style="margin-bottom: 15px;">
                 <tr><td style="text-align: left;"><strong>Поставщик:</strong><br>{company}, ИНН {inn}, {address}</td></tr>
-                <tr><td style="text-align: left; padding-top: 5px;"><strong>Покупатель:</strong><br>{customer_name}, ИНН {customer_inn}</td></tr>
+                <tr><td style="text-align: left; padding-top: 5px;"><strong>Покупатель:</strong><br>{customer_name}, ИНН {customer_inn}, {customer_address}</td></tr>
             </table>
             <table>
                 <tr><th style="text-align:center; width: 5%;">№</th><th style="width: 45%;">Наименование</th><th style="text-align:center; width: 10%;">Ед.</th><th style="text-align:center; width: 10%;">Кол-во</th><th style="text-align:right; width: 15%;">Цена</th><th style="text-align:right; width: 15%;">Сумма</th></tr>
                 {rows}
                 <tr><td colspan="5" style="text-align:right;font-weight:bold;">Итого:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr>
-                <tr><td colspan="5" style="text-align:right;font-weight:bold;">Без налога (НДС):</td><td style="text-align:right;font-weight:bold;">0,00</td></tr>
+                {nds_row}
                 <tr><td colspan="5" style="text-align:right;font-weight:bold;">Всего к оплате:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr>
             </table>
             <p>Всего наименований {len(services)}, на сумму {format_money(total_price)} руб.</p>
