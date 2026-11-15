@@ -7,7 +7,6 @@ from sqlalchemy import create_engine, Column, String, Integer, Text
 from sqlalchemy.orm import declarative_base, sessionmaker
 from xhtml2pdf import pisa
 from num2words import num2words
-import re
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
@@ -30,7 +29,7 @@ def decline_fio(fio):
 def get_short_name(fio):
     parts = fio.split()
     if len(parts) >= 3:
-        return f"{parts[1]} {parts[2]}" # Имя Отчество
+        return f"{parts[1]} {parts[2]}"
     return fio
 
 def get_signature_fio(fio):
