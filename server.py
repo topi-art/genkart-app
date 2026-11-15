@@ -1,10 +1,10 @@
-from fastapi import FastAPI, Form
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
 import io
 import json
 import requests
 from datetime import datetime
+from fastapi import FastAPI, Form
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from sqlalchemy import create_engine, Column, String, Integer, Text
 from sqlalchemy.orm import declarative_base, sessionmaker
 from xhtml2pdf import pisa
@@ -19,7 +19,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ИСПРАВЛЕННЫЙ ТОКЕН (01s вместо 0Ls)
 BOT_TOKEN = "9065574882:AAEiC01s-YC1ADejERPNLcZSdEJS7qCZe_I" 
 
 def decline_fio(fio):
@@ -302,12 +301,8 @@ async def generate_doc(
 
         buffer.seek(0)
 
-        if chat_id:
-            url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
-            files = {'document': ('document.pdf', buffer.getvalue(), 'application/pdf')}
-            data = {'chat_id': chat_id, 'caption': 'Ваш документ готов! 📄'}
-            requests.post(url, files=files, data=data)
-            
-        return {"status": "ok"}
+        # ВОЗВРАЩАЕМ ФАЙЛ В БРАУЗЕР (чтобы скачивался)
+        return StreamingResponse(buffer, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={template}.pdf"})
+        
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
