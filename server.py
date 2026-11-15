@@ -19,8 +19,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ВСТАВЛЕН ТВОЙ НОВЫЙ ТОКЕН
-BOT_TOKEN = "9065574882:AAEiC0Ls-YC1ADejERPNLcZSdEJS7qCZe_I" 
+# ИСПРАВЛЕННЫЙ ТОКЕН (буква L заменена на 1)
+BOT_TOKEN = "9065574882:AAEiC01s-YC1ADejERPNLcZSdEJS7qCZe_I" 
 
 def decline_fio(fio):
     if not fio: return ""
@@ -101,7 +101,6 @@ def get_header_html(company, inn, kpp, address, contacts, logo_base64=None):
     </div>
     """
 
-# ГЛАВНАЯ (Отдаем index.html)
 @app.get("/")
 def read_root(): 
     return FileResponse("index.html")
