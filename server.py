@@ -11,7 +11,7 @@ from num2words import num2words
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-# НОВЫЙ ТОКЕН (после перевыпуска)
+# ТВОЙ НОВЫЙ ТОКЕН
 BOT_TOKEN = "8888816541:AAEYjDCmWNpXqkEmMXiv2e47WJf191F450Q" 
 
 def decline_fio(fio):
@@ -40,10 +40,8 @@ def get_signature_fio(fio):
 def clean_text(text):
     if not text: return ""
     text = text.strip()
-    # Правильные кавычки для сложных названий
     if '"' in text:
         text = text.replace('"', '«', 1).replace('"', '»', 1)
-    # Убираем лишние точки в конце
     text = text.rstrip('.')
     return text
 
@@ -154,7 +152,6 @@ async def generate_doc(
         smeta_date_to_use = smeta_date if smeta_date else date_to_use
         buffer = io.BytesIO()
         
-        # Расчет НДС для ОСНО
         if tax_mode == "osno":
             nds_amount = total_price * 22 / 122
             nds_text = f"В том числе НДС 22%: <strong>{format_money(nds_amount)} руб.</strong> ({num2words_rub(nds_amount)})"
@@ -288,6 +285,7 @@ async def generate_doc(
 
         buffer.seek(0)
 
+        # ОТПРАВКА В TELEGRAM (строго по chat_id из интерфейса)
         if chat_id:
             url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
             files = {'document': (f'{template}.pdf', buffer.getvalue(), 'application/pdf')}
