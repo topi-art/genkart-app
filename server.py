@@ -11,7 +11,8 @@ from num2words import num2words
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-BOT_TOKEN = "8888816541:AAHr3KYdyGi3au_9xQQ83p7NVvI9A1Yp_xE" 
+# НОВЫЙ ТОКЕН (после перевыпуска)
+BOT_TOKEN = "8888816541:AAEYjDCmWNpXqkEmMXiv2e47WJf191F450Q" 
 
 def decline_fio(fio):
     if not fio: return ""
@@ -39,7 +40,7 @@ def get_signature_fio(fio):
 def clean_text(text):
     if not text: return ""
     text = text.strip()
-    # Правильные кавычки для сложных названий (АО «ТД «Перекресток»»)
+    # Правильные кавычки для сложных названий
     if '"' in text:
         text = text.replace('"', '«', 1).replace('"', '»', 1)
     # Убираем лишние точки в конце
