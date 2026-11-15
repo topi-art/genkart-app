@@ -19,7 +19,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ИСПРАВЛЕННЫЙ ТОКЕН (буква L заменена на 1)
+# ИСПРАВЛЕННЫЙ ТОКЕН (01s вместо 0Ls)
 BOT_TOKEN = "9065574882:AAEiC01s-YC1ADejERPNLcZSdEJS7qCZe_I" 
 
 def decline_fio(fio):
