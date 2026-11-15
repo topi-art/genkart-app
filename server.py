@@ -39,10 +39,10 @@ def get_signature_fio(fio):
 def clean_text(text):
     if not text: return ""
     text = text.strip()
-    # Правильные кавычки-елочки
+    # Правильные кавычки для сложных названий (АО «ТД «Перекресток»»)
     if '"' in text:
         text = text.replace('"', '«', 1).replace('"', '»', 1)
-    # Убираем лишние точки в конце (чтобы не было АО «Ромашка».)
+    # Убираем лишние точки в конце
     text = text.rstrip('.')
     return text
 
@@ -153,7 +153,13 @@ async def generate_doc(
         smeta_date_to_use = smeta_date if smeta_date else date_to_use
         buffer = io.BytesIO()
         
-        nds_text = "В том числе НДС 22%" if tax_mode == "osno" else "НДС не облагается на основании п. 2 ст. 346.11 НК РФ (УСН)"
+        # Расчет НДС для ОСНО
+        if tax_mode == "osno":
+            nds_amount = total_price * 22 / 122
+            nds_text = f"В том числе НДС 22%: <strong>{format_money(nds_amount)} руб.</strong> ({num2words_rub(nds_amount)})"
+        else:
+            nds_text = "НДС не облагается на основании п. 2 ст. 346.11 НК РФ (УСН)"
+
         header_html = get_header_html(company, inn, kpp, address, contacts)
         dir_rod = decline_fio(director)
         cust_rod = decline_fio(customer_director)
@@ -170,7 +176,6 @@ async def generate_doc(
             customer_greeting = get_short_name(customer_director) if customer_director else "клиент"
             greeting = f"Уважаемый {customer_greeting}!" if customer_greeting != "клиент" else "Уважаемый клиент!"
             
-            # Убираем М.П. из КП по совету ИИ
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
             {header_html}
             <table class="meta"><tr><td style="text-align:right;">Исх. № {dogovor_number} от {date_to_use} г.</td></tr></table>
@@ -193,7 +198,8 @@ async def generate_doc(
             <h1 class="title">Смета № {smeta_appendix}</h1>
             <p style="text-align:center; text-indent:0;">от {smeta_date_to_use} г.</p>
             <table><tr><th style="text-align:center; width: 5%;">№</th><th style="width: 40%;">Наименование</th><th style="text-align:center; width: 10%;">Ед.</th><th style="text-align:center; width: 10%;">Кол-во</th><th style="text-align:right; width: 15%;">Цена</th><th style="text-align:right; width: 15%;">Сумма</th></tr>{rows}<tr><td colspan="5" style="text-align:right;font-weight:bold;">Всего:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr></table>
-            <p><strong>Всего наименований {len(services)}, на сумму {format_money(total_price)} руб. ({sum_propis}).</strong> {nds_text}.</p>
+            <p><strong>Всего наименований {len(services)}, на сумму {format_money(total_price)} руб. ({sum_propis}).</strong></p>
+            <p>{nds_text}.</p>
             <table style="width: 100%; border: none; margin-top: 30px; text-indent: 0;"><tr><td style="border: none; width: 50%;"><strong>Исполнитель:</strong><br>{clean_text(company)}<br>ИНН: {inn}{kpp_str}<br>Адрес: {clean_text(address)}<br><br>Генеральный директор<br>_______________ / {director} /<br>М.П.</td><td style="border: none; width: 50%;"><strong>Заказчик:</strong><br>{clean_text(customer_name)}<br>ИНН: {customer_inn}{cust_kpp_str}<br>Адрес: {clean_text(customer_address)}<br><br>Генеральный директор<br>_______________ / {customer_director} /<br>М.П.</td></tr></table>
             </body></html>"""
             pisa.CreatePDF(html, dest=buffer)
@@ -206,7 +212,8 @@ async def generate_doc(
             <div class="section-title">1. ПРЕДМЕТ ДОГОВОРА</div>
             <p>1.1. Исполнитель обязуется оказать следующие услуги: <strong>{services[0]['name'] if services else 'Услуги'}</strong>.</p>
             <div class="section-title">2. СТОИМОСТЬ И ПОРЯДОК РАСЧЕТОВ</div>
-            <p>2.1. Общая стоимость Услуг составляет <strong>{format_money(total_price)} руб.</strong>, {nds_text}.</p>
+            <p>2.1. Общая стоимость Услуг составляет <strong>{format_money(total_price)} руб.</strong></p>
+            <p>{nds_text}.</p>
             <p>2.2. Оплата 100% в течение 3 банковских дней с момента подписания Акта.</p>
             <div class="section-title">3. ПОРЯДОК СДАЧИ-ПРИЕМКИ</div>
             <p>3.1. Заказчик обязан в течение 3 рабочих дней подписать Акт или направить мотивированный отказ. В случае отсутствия отказа, услуги считаются принятыми.</p>
@@ -226,7 +233,8 @@ async def generate_doc(
             <table class="meta"><tr><td style="text-align: left;">г. Москва</td><td style="text-align: right;">{smeta_date_to_use} г.</td></tr></table>
             <p>Мы, нижеподписавшиеся, представитель Исполнителя <strong>{clean_text(company)}</strong> в лице Генерального директора {dir_rod}, с одной стороны, и представитель Заказчика <strong>{clean_text(customer_name)}</strong> в лице Генерального директора {cust_rod}, с другой стороны, составили настоящий Акт о том, что Услуги по Договору № {dogovor_number} от {date_to_use} выполнены в полном объеме и в срок.</p>
             <table><tr><th style="text-align:center; width: 5%;">№</th><th style="width: 40%;">Наименование услуги</th><th style="text-align:center; width: 10%;">Ед.</th><th style="text-align:center; width: 10%;">Кол-во</th><th style="text-align:right; width: 15%;">Цена</th><th style="text-align:right; width: 15%;">Сумма</th></tr>{rows}<tr><td colspan="5" style="text-align:right;font-weight:bold;">Всего к оплате:</td><td style="text-align:right;font-weight:bold;">{format_money(total_price)}</td></tr></table>
-            <p><strong>Всего наименований {len(services)}, на сумму {format_money(total_price)} руб. ({sum_propis}).</strong> {nds_text}.</p>
+            <p><strong>Всего наименований {len(services)}, на сумму {format_money(total_price)} руб. ({sum_propis}).</strong></p>
+            <p>{nds_text}.</p>
             <p>Претензий по объему, качеству и срокам оказания Услуг Заказчик не имеет.</p>
             <table style="width: 100%; border: none; margin-top: 40px; text-indent: 0;"><tr>
                 <td style="border: none; width: 50%; vertical-align: top;"><strong>Исполнитель:</strong><br>{clean_text(company)}<br>ИНН: {inn}{kpp_str}<br>Адрес: {clean_text(address)}<br><br>Генеральный директор<br>_______________ / {director} /<br>М.П.</td>
@@ -236,7 +244,12 @@ async def generate_doc(
 
         elif template == "invoice":
             rows = "".join([f"<tr><td style='text-align:center;'>{i+1}</td><td>{s['name']}</td><td style='text-align:center;'>{s.get('unit', 'усл.')}</td><td style='text-align:center;'>{s['qty']}</td><td style='text-align:right;'>{format_money(float(s['price']))}</td><td style='text-align:right;'>{format_money(float(s['price'])*int(s['qty']))}</td></tr>" for i, s in enumerate(services)])
-            nds_row = f"<tr><td colspan='5' style='text-align:right;font-weight:bold;'>В том числе НДС 22%:</td><td style='text-align:right;font-weight:bold;'>{format_money(total_price * 0.22 / 1.22)}</td></tr>" if tax_mode == "osno" else "<tr><td colspan='5' style='text-align:right;font-weight:bold;'>Без налога (НДС):</td><td style='text-align:right;font-weight:bold;'>0,00</td></tr>"
+            
+            if tax_mode == "osno":
+                nds_amount = total_price * 22 / 122
+                nds_row = f"<tr><td colspan='5' style='text-align:right;font-weight:bold;'>В том числе НДС 22%:</td><td style='text-align:right;font-weight:bold;'>{format_money(nds_amount)}</td></tr>"
+            else:
+                nds_row = "<tr><td colspan='5' style='text-align:right;font-weight:bold;'>Без налога (НДС):</td><td style='text-align:right;font-weight:bold;'>0,00</td></tr>"
             
             bank_table = f"""<table style="width: 100%; border-collapse: collapse; text-indent: 0; font-size: 10pt; margin-bottom: 20px;">
                 <tr><td style="border: 1px solid #000; padding: 5px; width: 15%;">Банк получателя:</td><td style="border: 1px solid #000; padding: 5px;" colspan="3">{bank_name or "____________________"}</td></tr>
