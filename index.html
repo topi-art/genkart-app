@@ -186,20 +186,7 @@
 
             try {
                 const res = await fetch('/generate-doc', { method: 'POST', body: fd });
-                if (res.ok) { 
-                    const blob = await res.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = currentTemplate + ".pdf";
-                    document.body.appendChild(a);
-                    a.click();
-                    a.remove();
-                    tg.showAlert("Документ скачан!"); 
-                    statusText.textContent = "Готово!"; 
-                } else { 
-                    statusText.textContent = "Ошибка сервера."; 
-                }
+                if (res.ok) { tg.showAlert("Документ отправлен в чат!"); statusText.textContent = "Готово!"; } else { statusText.textContent = "Ошибка сервера."; }
             } catch (e) { statusText.textContent = "Ошибка сети."; } finally { btn.disabled = false; btn.textContent = "Создать документ 📄"; }
         });
     </script>
