@@ -11,8 +11,10 @@ from num2words import num2words
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-# Правильный токен
 BOT_TOKEN = "9065574882:AAEiC01s-YC1ADejERPNLcZSdEJS7qCZe_I" 
+
+# --- ТВОЙ ID ДЛЯ ТЕСТОВ (если из интерфейса не придет, отправим сюда) ---
+MY_CHAT_ID = "1124115675"
 
 def decline_fio(fio):
     if not fio: return ""
@@ -90,32 +92,6 @@ def get_header_html(company, inn, kpp, address, contacts):
 def read_root(): 
     return FileResponse("index.html")
 
-@app.get("/get-profile")
-async def get_profile(chat_id: str):
-    db = SessionLocal()
-    profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
-    db.close()
-    if profile:
-        return {"status": "ok", "company": profile.company, "inn": profile.inn, "kpp": profile.kpp, "address": profile.address, "contacts": profile.contacts, "director": profile.director}
-    return {"status": "not_found"}
-
-@app.post("/save-profile")
-async def save_profile(
-    chat_id: str = Form(...), company: str = Form(""), inn: str = Form(""), kpp: str = Form(""), address: str = Form(""), 
-    contacts: str = Form(""), director: str = Form("")
-):
-    db = SessionLocal()
-    try:
-        profile = db.query(Profile).filter(Profile.chat_id == chat_id).first()
-        if profile:
-            profile.company, profile.inn, profile.kpp, profile.address, profile.contacts, profile.director = company, inn, kpp, address, contacts, director
-        else:
-            db.add(Profile(chat_id=chat_id, company=company, inn=inn, kpp=kpp, address=address, contacts=contacts, director=director))
-        db.commit()
-        return {"status": "ok"}
-    except Exception as e: return {"status": "error", "message": str(e)}
-    finally: db.close()
-
 @app.post("/generate-doc")
 async def generate_doc(
     template: str = Form("kp"), company: str = Form(""), inn: str = Form(""), kpp: str = Form(""), 
@@ -155,13 +131,12 @@ async def generate_doc(
             pisa.CreatePDF(html, dest=buffer)
 
         elif template == "dogovor":
-            first_service = services[0]['name'] if services else "Услуги"
             html = f"""<html><head><meta charset="utf-8"><style>{CSS_STYLES}</style></head><body>
             <h1 class="title">ДОГОВОР ОКАЗАНИЯ УСЛУГ № {dogovor_number}</h1>
             <table class="meta"><tr><td style="text-align: left;">г. Москва</td><td style="text-align: right;">{date_to_use} г.</td></tr></table>
             <p>{company}, в лице Генерального директора {director}, с одной стороны, и {customer_name} (ИНН: {customer_inn}), в лице Генерального директора, с другой стороны, заключили Договор:</p>
             <div class="section-title">1. ПРЕДМЕТ ДОГОВОРА</div>
-            <p>1.1. Исполнитель обязуется оказать следующие услуги: <strong>{first_service}</strong>.</p>
+            <p>1.1. Исполнитель обязуется оказать услуги.</p>
             <div class="section-title">2. СТОИМОСТЬ И ПОРЯДОК РАСЧЕТОВ</div>
             <p>2.1. Общая стоимость Услуг составляет <strong>{format_money(total_price)} руб.</strong></p>
             <div class="section-title">5. РЕКВИЗИТЫ И ПОДПИСИ СТОРОН</div>
@@ -209,10 +184,13 @@ async def generate_doc(
 
         buffer.seek(0)
 
-        if chat_id:
+        # Если chat_id не пришел из интерфейса, используем твой ID для тестов
+        target_chat_id = chat_id if chat_id else MY_CHAT_ID
+
+        if target_chat_id:
             url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
             files = {'document': (f'{template}.pdf', buffer.getvalue(), 'application/pdf')}
-            data = {'chat_id': chat_id, 'caption': 'Ваш документ готов! 📄'}
+            data = {'chat_id': target_chat_id, 'caption': 'Ваш документ готов! 📄'}
             requests.post(url, files=files, data=data)
             
         return {"status": "ok"}
