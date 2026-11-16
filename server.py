@@ -1,3 +1,12 @@
+import subprocess
+import sys
+
+# Принудительная установка python-docx, если её нет
+try:
+    import docx
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "python-docx"])
+
 from fastapi import FastAPI, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
@@ -8,15 +17,15 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from xhtml2pdf import pisa
 from num2words import num2words
 from docx import Document
-from docx.shared import Pt, Inches
+from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-# ТВОЙ ТОКЕН
-BOT_TOKEN = "8888816541:AAHvupbfatSzaMyE-ekvYCBkt9mqwJA-y5c"
+# ТВОЙ НОВЫЙ ТОКЕН
+BOT_TOKEN = "8888816541:AAHvupbfatSzaMyE-ekvYCBkt9mqwJA-y5c" 
 
 def decline_fio(fio):
     if not fio: return ""
@@ -57,26 +66,6 @@ def num2words_rub(num):
         return f"{rub_str} рублей {kop:02d} копеек"
     except:
         return f"{format_money(num)} рублей"
-
-# --- БАЗА ДАННЫХ ---
-DATABASE_URL = "sqlite:///./profiles_final.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-class Profile(Base):
-    __tablename__ = "profiles"
-    id = Column(Integer, primary_key=True, index=True)
-    chat_id = Column(String, unique=True, index=True)
-    company = Column(String, default="ООО «Ваша компания»")
-    inn = Column(String, default="0000000000")
-    kpp = Column(String, default="")
-    address = Column(String, default="г. Москва")
-    contacts = Column(String, default="+7 (999) 999-99-99")
-    tax_mode = Column(String, default="usn")
-    director = Column(String, default="Иванов И.И.")
-
-Base.metadata.create_all(bind=engine)
 
 # --- ГЕНЕРАЦИЯ WORD (DOCX) ---
 def generate_docx(template, company, inn, kpp, address, contacts, director, services, total_price, customer_name, customer_inn, customer_kpp, customer_address, customer_director, tax_mode, dogovor_number):
@@ -139,7 +128,26 @@ def generate_docx(template, company, inn, kpp, address, contacts, director, serv
     buffer.seek(0)
     return buffer
 
-# --- СТИЛИ ДЛЯ PDF ---
+# --- БАЗА ДАННЫХ ---
+DATABASE_URL = "sqlite:///./profiles_final.db"
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+class Profile(Base):
+    __tablename__ = "profiles"
+    id = Column(Integer, primary_key=True, index=True)
+    chat_id = Column(String, unique=True, index=True)
+    company = Column(String, default="ООО «Ваша компания»")
+    inn = Column(String, default="0000000000")
+    kpp = Column(String, default="")
+    address = Column(String, default="г. Москва")
+    contacts = Column(String, default="+7 (999) 999-99-99")
+    tax_mode = Column(String, default="usn")
+    director = Column(String, default="Иванов И.И.")
+
+Base.metadata.create_all(bind=engine)
+
 CSS_STYLES = """
 @page { size: a4; margin: 20mm 15mm 20mm 30mm; }
 @font-face { font-family: "PTSans"; src: url("https://github.com/google/fonts/raw/main/ofl/ptsans/PT_Sans-Web-Regular.ttf"); }
