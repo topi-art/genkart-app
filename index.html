@@ -59,7 +59,6 @@
         </div>
 
         <div id="servicesContainer">
-            <!-- Строка услуги по умолчанию -->
             <div class="service-row">
                 <input type="text" class="input-text input-name" placeholder="Услуга" value='Транспортировка'>
                 <input type="text" class="input-text input-unit" placeholder="Ед." value="рейс">
@@ -69,7 +68,6 @@
             </div>
         </div>
         
-        <!-- Кнопка добавления новой услуги -->
         <button class="btn-secondary" onclick="addService()">+ Добавить услугу</button>
         
         <input type="text" id="dogovorNumber" class="input-text" placeholder="Номер договора" value="б/н">
@@ -85,7 +83,6 @@
         const chatId = tg.initDataUnsafe?.user?.id;
         let currentTemplate = 'kp';
 
-        // Добавление новой строки услуги
         function addService() {
             const container = document.getElementById('servicesContainer');
             const row = document.createElement('div');
@@ -100,7 +97,6 @@
             container.appendChild(row);
         }
 
-        // Удаление строки услуги
         function removeService(btn) {
             if (document.querySelectorAll('.service-row').length > 1) {
                 btn.parentElement.remove();
