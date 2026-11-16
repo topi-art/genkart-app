@@ -1,6 +1,8 @@
 fastapi
 uvicorn
-requests
 python-multipart
 sqlalchemy
+num2words
 xhtml2pdf
+requests
+python-docx
