@@ -148,10 +148,10 @@
                     document.getElementById('contactInput').value = data.contacts;
                     document.getElementById('taxMode').value = data.tax_mode || 'usn';
                     document.getElementById('directorInput').value = data.director;
-                    document.getElementById('bankName').value = data.bank_name;
-                    document.getElementById('bik').value = data.bik;
-                    document.getElementById('rs').value = data.rs;
-                    document.getElementById('ks').value = data.ks;
+                    document.getElementById('bankName').value = data.bank_name || "";
+                    document.getElementById('bik').value = data.bik || "";
+                    document.getElementById('rs').value = data.rs || "";
+                    document.getElementById('ks').value = data.ks || "";
                 }
             } catch (e) {}
         }
