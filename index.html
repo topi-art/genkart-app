@@ -21,8 +21,6 @@
         .tpl-btn.active { background: #2a2a2a; color: var(--accent); border-color: var(--accent); }
         .btn-generate { background: var(--accent); color: white; border: none; width: 100%; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; margin-bottom: 10px; }
         .btn-secondary { background: #333; color: #fff; border: none; width: 100%; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 15px; }
-        .dynamic-fields { display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid #333; }
-        .dynamic-fields.active { display: block; }
         .status-text { font-size: 13px; color: var(--accent); text-align: center; margin-top: 10px; }
         .disclaimer { font-size: 11px; color: #777; text-align: center; margin-top: 20px; line-height: 1.4; padding: 0 10px; }
         .service-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
@@ -94,7 +92,8 @@
         <button class="btn-secondary" onclick="addService()" style="margin-top: 5px;">+ Добавить услугу</button>
         <input type="text" id="termInput" class="input-text" placeholder="Сроки" value="1 рейс" style="margin-top: 10px;">
 
-        <div id="commonDocFields" class="dynamic-fields active">
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #333;">
+            <div style="font-size: 14px; font-weight: 600; margin-bottom: 10px;">Данные Заказчика</div>
             <input type="text" id="dogovorNumber" class="input-text" placeholder="Номер договора/счета" value="б/н">
             <input type="text" id="dogovorDate" class="input-text" placeholder="Дата документа" value="12.11.2026">
             <input type="text" id="customerName" class="input-text" placeholder="Наименование Заказчика" value='ООО "Заказчик"'>
@@ -102,10 +101,6 @@
             <input type="text" id="customerKpp" class="input-text" placeholder="КПП Заказчика" value="">
             <input type="text" id="customerAddress" class="input-text" placeholder="Адрес Заказчика" value="г. Москва">
             <input type="text" id="customerDirector" class="input-text" placeholder="ФИО Директора Заказчика" value="Петров Петр Петрович">
-        </div>
-
-        <div id="smetaFields" class="dynamic-fields">
-            <input type="text" id="smetaAppendix" class="input-text" placeholder="Номер приложения (например, 1)" value="1">
         </div>
 
         <button class="btn-generate" id="btnGenerateDoc" style="margin-top: 15px;">Создать документ 📄</button>
@@ -180,10 +175,6 @@
             currentTemplate = tpl;
             document.querySelectorAll('.tpl-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            document.querySelectorAll('.dynamic-fields').forEach(b => b.classList.remove('active'));
-            if (tpl === 'smeta') {
-                document.getElementById('smetaFields').classList.add('active');
-            }
         }
 
         document.getElementById('btnSaveProfile').addEventListener('click', async () => {
@@ -225,18 +216,13 @@
             fd.append('rs', document.getElementById('rs').value); fd.append('ks', document.getElementById('ks').value);
             fd.append('term', document.getElementById('termInput').value); fd.append('services_json', JSON.stringify(services));
 
-            if (document.getElementById('dogovorNumber').value) {
-                fd.append('dogovor_number', document.getElementById('dogovorNumber').value); 
-                fd.append('dogovor_date', document.getElementById('dogovorDate').value);
-                fd.append('customer_name', document.getElementById('customerName').value); 
-                fd.append('customer_inn', document.getElementById('customerInn').value);
-                fd.append('customer_kpp', document.getElementById('customerKpp').value);
-                fd.append('customer_address', document.getElementById('customerAddress').value);
-                fd.append('customer_director', document.getElementById('customerDirector').value);
-            }
-            if (currentTemplate === 'smeta') {
-                fd.append('smeta_appendix', document.getElementById('smetaAppendix').value);
-            }
+            fd.append('dogovor_number', document.getElementById('dogovorNumber').value); 
+            fd.append('dogovor_date', document.getElementById('dogovorDate').value);
+            fd.append('customer_name', document.getElementById('customerName').value); 
+            fd.append('customer_inn', document.getElementById('customerInn').value);
+            fd.append('customer_kpp', document.getElementById('customerKpp').value);
+            fd.append('customer_address', document.getElementById('customerAddress').value);
+            fd.append('customer_director', document.getElementById('customerDirector').value);
 
             try {
                 const res = await fetch('/generate-doc', { method: 'POST', body: fd });
