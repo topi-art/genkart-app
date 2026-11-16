@@ -208,7 +208,7 @@ async def generate_doc(
                 </body></html>"""
                 pisa.CreatePDF(html, dest=buffer)
                 
-            # --- СМЕТА / АКТ / ДОГОВОР (Упрощенные, но рабочие) ---
+            # --- СМЕТА / АКТ / ДОГОВОР (Пока упрощенно, но рабочие) ---
             else:
                 rows = "".join([f"<tr><td>{s['name']}</td><td>{s['qty']}</td><td>{format_money(float(s['price'])*int(s['qty']))}</td></tr>" for i, s in enumerate(services)])
                 html = f"<html><body>{header_html}<h1 class='title'>{template.upper()}</h1><table><tr><th>Наименование</th><th>Кол-во</th><th>Сумма</th></tr>{rows}</table><p>Итого: {format_money(total_price)} руб.</p></body></html>"
